@@ -1,0 +1,59 @@
+# Portfolio Implementation Toolkit
+
+[![CI](https://github.com/emilio-pirez/portfolio-implementation-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/emilio-pirez/portfolio-implementation-toolkit/actions/workflows/ci.yml)
+
+A simplified simulation of a core portfolio manager's daily implementation workflow:
+cash equitization with index futures, basket generation, pre-trade compliance and monitoring.
+
+> **Status:** work in progress (Phase 1 of 7: project skeleton). See the roadmap below.
+
+## What this is (and is not)
+
+This project models how a portfolio manager *implements* a portfolio: receiving
+cash flows, keeping the fund fully invested with index futures, generating the
+trade basket toward model weights, and checking every basket against risk and
+compliance limits before it goes to the trading desk. All of it is logged for audit.
+
+It is **not** an alpha model or a trading strategy. Target weights are an input
+(the "PM's model"), read from `data/inputs/target_weights.csv`.
+
+## Quickstart
+
+```bash
+git clone https://github.com/emilio-pirez/portfolio-implementation-toolkit.git
+cd portfolio-implementation-toolkit
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+pit version
+pit show-config
+pytest
+```
+
+Market data API keys are optional. Copy `.env.example` to `.env` to use live
+data; without keys the toolkit runs in offline mode on clearly labelled synthetic data.
+
+## Roadmap
+
+| Phase | Scope | Status |
+|---|---|---|
+| 1 | Skeleton: packaging, config, lint, CI | done |
+| 2 | Data layer: SQLite schema, FMP / FRED clients, offline synthetic data | planned |
+| 3 | Portfolio valuation, NAV, futures fair value, equitization | planned |
+| 4 | Trade basket generation and pre-trade compliance | planned |
+| 5 | Risk metrics, daily workflow, backtest | planned |
+| 6 | Streamlit dashboard | planned |
+| 7 | Documentation and polish | planned |
+
+## Project layout
+
+```
+config.yaml          # every limit and assumption, in one reviewable file
+src/pit/             # the package (db, data, portfolio, equitization, orders, compliance, risk, workflow)
+app/dashboard.py     # Streamlit dashboard
+docs/                # methodology and design notes
+tests/               # pytest suite
+```
+
+## Author
+
+Emilio Pirez
