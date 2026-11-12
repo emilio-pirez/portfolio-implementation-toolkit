@@ -18,7 +18,7 @@ CREATE TABLE benchmark_weights (
 	market_cap FLOAT,
 	source VARCHAR(16) NOT NULL,
 	PRIMARY KEY (date, ticker),
-	CONSTRAINT ck_source_valid CHECK (source IN ('FMP', 'FRED', 'SYNTHETIC'))
+	CONSTRAINT ck_source_valid CHECK (source IN ('FMP', 'FRED', 'SYNTHETIC', 'INTERNAL'))
 );
 
 CREATE TABLE cash_flows (
@@ -81,7 +81,7 @@ CREATE TABLE prices (
 	source VARCHAR(16) NOT NULL,
 	PRIMARY KEY (ticker, date),
 	CONSTRAINT ck_close_positive CHECK (close > 0),
-	CONSTRAINT ck_source_valid CHECK (source IN ('FMP', 'FRED', 'SYNTHETIC'))
+	CONSTRAINT ck_source_valid CHECK (source IN ('FMP', 'FRED', 'SYNTHETIC', 'INTERNAL'))
 );
 
 CREATE TABLE rates (
@@ -90,7 +90,7 @@ CREATE TABLE rates (
 	value FLOAT NOT NULL,
 	source VARCHAR(16) NOT NULL,
 	PRIMARY KEY (series, date),
-	CONSTRAINT ck_source_valid CHECK (source IN ('FMP', 'FRED', 'SYNTHETIC'))
+	CONSTRAINT ck_source_valid CHECK (source IN ('FMP', 'FRED', 'SYNTHETIC', 'INTERNAL'))
 );
 
 CREATE TABLE securities (
@@ -101,7 +101,7 @@ CREATE TABLE securities (
 	source VARCHAR(16) NOT NULL,
 	PRIMARY KEY (ticker),
 	CONSTRAINT ck_asset_type_valid CHECK (asset_type IN ('EQUITY', 'FUTURE', 'CASH', 'INDEX')),
-	CONSTRAINT ck_source_valid CHECK (source IN ('FMP', 'FRED', 'SYNTHETIC'))
+	CONSTRAINT ck_source_valid CHECK (source IN ('FMP', 'FRED', 'SYNTHETIC', 'INTERNAL'))
 );
 
 CREATE TABLE target_weights (

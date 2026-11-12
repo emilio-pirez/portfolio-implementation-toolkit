@@ -53,6 +53,10 @@ class DataSource(StrEnum):
     FMP = "FMP"
     FRED = "FRED"
     SYNTHETIC = "SYNTHETIC"
+    INTERNAL = "INTERNAL"  # instruments defined by the toolkit itself (futures contracts, cash)
+
+
+MARKET_SOURCES = (DataSource.FMP, DataSource.FRED, DataSource.SYNTHETIC)
 
 
 class CashFlowType(StrEnum):

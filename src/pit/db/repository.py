@@ -11,7 +11,15 @@ from sqlalchemy import Table, delete, func, select
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import Session
 
-from pit.db.models import Base, BenchmarkWeight, DataSource, Price, Rate, Security
+from pit.db.models import (
+    MARKET_SOURCES,
+    Base,
+    BenchmarkWeight,
+    DataSource,
+    Price,
+    Rate,
+    Security,
+)
 
 MARKET_DATA_MODELS: tuple[type[Base], ...] = (Security, Price, Rate, BenchmarkWeight)
 _CHUNK = 500
@@ -46,13 +54,15 @@ def purge_market_data_not_from(session: Session, keep: Iterable[DataSource]) -> 
     """Delete market data whose source is not in ``keep``.
 
     Called before every load so synthetic and real data never coexist in the
-    same database. Returns the number of rows deleted.
+    same database. ``INTERNAL`` rows (futures contracts, cash) are never
+    touched. Returns the number of rows deleted.
     """
-    keep_values = [s.value for s in keep]
+    keep_set = set(keep)
+    drop = [s.value for s in MARKET_SOURCES if s not in keep_set]
     deleted = 0
     for model in MARKET_DATA_MODELS:
         source_col = model.source  # type: ignore[attr-defined]
-        result = session.execute(delete(model).where(source_col.not_in(keep_values)))
+        result = session.execute(delete(model).where(source_col.in_(drop)))
         deleted += result.rowcount or 0  # type: ignore[attr-defined]
     return deleted
 
