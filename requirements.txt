@@ -1,0 +1,3 @@
+# Used by Streamlit Community Cloud to install the app.
+# Installs this package (src/pit) with its runtime dependencies from pyproject.toml.
+.

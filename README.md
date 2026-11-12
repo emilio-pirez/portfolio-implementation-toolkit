@@ -34,8 +34,8 @@ controlling risk and documenting every decision.
 ## Demo
 
 `streamlit run app/dashboard.py` opens six pages. On a fresh clone the first
-launch builds an offline demo by itself (about a minute). A banner marks every
-page whenever the data is synthetic.
+launch loads a prebuilt offline demo (`data/demo/demo.db`) in a few seconds.
+A banner marks every page whenever the data is synthetic.
 
 | | |
 |---|---|
@@ -127,8 +127,9 @@ pip install -e ".[dev]"
 streamlit run app/dashboard.py
 ```
 
-The first launch builds the offline demo (~1 minute); after that the dashboard
-opens immediately. On a fresh clone the whole path takes about 2-3 minutes.
+The first launch copies the prebuilt offline demo database; the dashboard opens
+in seconds. On a fresh clone the whole path (clone, install, open) takes about
+2 minutes. To rebuild the demo from scratch: `pit demo --snapshot-out data/demo/demo.db`.
 
 Everything also runs from the command line. Days are processed once and in
 order, so start from an empty database (the demo above already processed
@@ -140,7 +141,7 @@ pit load-data --offline              # synthetic data, no API keys needed
 pit run-day --date 2026-03-16        # USD 25 m subscription: equitize, basket, compliance
 pit run-day --date 2026-03-17        # basket filled, futures unwound
 pit backtest                         # with vs without equitization (~1 minute)
-pytest                               # 198 tests, ~2 minutes
+pytest                               # 202 tests, ~2 minutes
 ```
 
 **Live data (optional).** Copy `.env.example` to `.env` and add free keys from
@@ -156,7 +157,7 @@ clearly labelled synthetic data.
 | `pit approve / reject --batch-id ID --reason ...` | Manual decision on a basket with SOFT alerts |
 | `pit export-basket --batch-id ID --out file.csv` | Trading-desk file (`ticker, side, quantity, est_price, est_notional`) |
 | `pit backtest [--start --end --flows --lag]` | Same workflow over a period, with vs. without equitization |
-| `pit demo [--skip-backtest]` | Build the offline demo database used by the dashboard |
+| `pit demo [--skip-backtest] [--snapshot-out FILE]` | Build the offline demo database used by the dashboard, or regenerate the committed snapshot |
 | `pit show-config` / `pit db-schema` | Validate `config.yaml` / print the database DDL (SQLite or Postgres) |
 
 ## What's inside
@@ -214,16 +215,25 @@ answers to the questions this project is meant to support.
 - **Out of scope:** FX and international stocks, ETF create/redeem,
   transition management, taxes. These are possible extensions.
 
+## Deploy the dashboard (Streamlit Community Cloud)
+
+The repository is ready for [Streamlit Community Cloud](https://share.streamlit.io):
+`requirements.txt` installs the package, and `config.yaml` is found from the
+repository root. On start, the empty database is restored from
+`data/demo/demo.db`. In the deploy form use branch `main`, main file
+`app/dashboard.py` and Python 3.12.
+
 ## Project layout
 
 ```
 config.yaml              every limit and assumption, in one reviewable file
 data/inputs/             model weights, example flows, restricted list, offline universe
+data/demo/demo.db        prebuilt offline demo database (synthetic) for the dashboard
 src/pit/                 package: data, db, portfolio, equitization, orders,
                          compliance, risk, workflow, dashboard queries, CLI
 app/dashboard.py         Streamlit dashboard (6 pages)
 docs/                    methodology, interview notes, screenshots
-tests/                   198 tests, no network calls (HTTP is mocked)
+tests/                   202 tests, no network calls (HTTP is mocked)
 ```
 
 ## Author
