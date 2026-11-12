@@ -1,0 +1,66 @@
+# Portfolio Implementation Toolkit - run-time parameters.
+#
+# Every limit and assumption used by the toolkit lives here so that it can be
+# reviewed (and changed) without touching code. Units are stated explicitly:
+#   *_pct  -> decimal fraction (0.08 = 8 %)
+#   *_bps  -> basis points (5 = 0.05 %)
+
+fund:
+  name: "Simulated U.S. Large Cap Core Fund"
+  base_currency: "USD"
+  initial_nav: 500_000_000          # USD 500 million, invested per the model at inception
+  benchmark: "SPX"                  # S&P 500
+
+data:
+  db_url: "sqlite:///data/db/toolkit.db"
+  target_weights_file: "data/inputs/target_weights.csv"
+  cash_flows_file: "data/inputs/cash_flows.csv"
+  restricted_list_file: "data/inputs/restricted_list.csv"
+  price_history_days: 504           # ~2 years of trading days
+  risk_free_series: "DTB3"          # FRED 3-month T-Bill, secondary market rate
+  synthetic_seed: 42                # fixed seed so offline runs are reproducible
+
+futures:
+  # Equitization instruments. Fair value F = S * exp((r - q) * T) is used as the
+  # futures price (a theoretical approximation; production would use the
+  # actual contract price).
+  index_dividend_yield: 0.013       # q, annualised S&P 500 dividend yield
+  contracts:
+    ES:
+      description: "E-mini S&P 500"
+      multiplier: 50                # USD per index point
+    MES:
+      description: "Micro E-mini S&P 500"
+      multiplier: 5
+  roll_window_business_days: 5      # flag a roll when expiry is <= this many business days away
+  target_beta: 1.0                  # beta used to size the futures hedge
+
+equitization:
+  cash_buffer_pct: 0.005            # 0.5 % of NAV left un-equitized for margin and expenses
+
+orders:
+  round_lot: 1                      # trade in whole shares
+  no_trade_threshold_bps: 5         # skip trades whose |delta weight| < 5 bp
+
+costs:
+  commission_bps: 1.0               # explicit commission per notional traded
+  half_spread_bps: 2.0              # implicit cost: half the bid-ask spread
+
+compliance:
+  # severity: HARD blocks the basket (REJECTED); SOFT raises an alert and
+  # requires manual approval.
+  max_issuer_weight:        { limit: 0.08,              severity: HARD }
+  max_sector_weight:        { limit: 0.30,              severity: HARD }
+  sector_active_weight:     { limit: 0.10,              severity: SOFT }  # +/- 10 pts vs benchmark
+  cash_range:               { min: 0.0025, max: 0.03,   severity: HARD }  # % of NAV
+  total_exposure_range:     { min: 0.98,   max: 1.02,   severity: HARD }  # (equities + futures notional) / NAV
+  max_tracking_error:       { limit: 0.06,              severity: SOFT }  # ex-ante, annualised
+  beta_range:               { min: 0.85,   max: 1.15,   severity: SOFT }
+  holdings_count_range:     { min: 30,     max: 80,     severity: SOFT }
+  restricted_list:          { severity: HARD }
+  max_order_pct_adv:        { limit: 0.10,              severity: SOFT }  # order size vs 20-day ADV
+
+risk:
+  lookback_days: 252                # window for betas and covariance
+  annualization_factor: 252
+  covariance_shrinkage: "ledoit_wolf"   # "none" | "ledoit_wolf"
