@@ -5,7 +5,7 @@
 A simplified simulation of a core portfolio manager's daily implementation workflow:
 cash equitization with index futures, basket generation, pre-trade compliance and monitoring.
 
-> **Status:** work in progress (Phase 1 of 7: project skeleton). See the roadmap below.
+> **Status:** work in progress (Phase 2 of 7: data layer). See the roadmap below.
 
 ## What this is (and is not)
 
@@ -24,20 +24,30 @@ git clone https://github.com/emilio-pirez/portfolio-implementation-toolkit.git
 cd portfolio-implementation-toolkit
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-pit version
-pit show-config
+pit load-data --offline     # synthetic data, no API keys needed
 pytest
 ```
 
-Market data API keys are optional. Copy `.env.example` to `.env` to use live
-data; without keys the toolkit runs in offline mode on clearly labelled synthetic data.
+Market data API keys are optional. To use live data, copy `.env.example` to
+`.env`, add free keys from [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs)
+and [FRED](https://fred.stlouisfed.org/docs/api/api_key.html), and run
+`pit load-data`. Without keys, or if a provider fails, the toolkit falls back to
+offline mode on clearly labelled synthetic data.
+
+## CLI
+
+| Command | What it does |
+|---|---|
+| `pit load-data [--offline]` | Load prices, benchmark weights, T-Bill rate and model weights into SQLite |
+| `pit show-config` | Validate `config.yaml` and print key parameters |
+| `pit db-schema` | Print the database DDL (SQLite or Postgres) |
 
 ## Roadmap
 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Skeleton: packaging, config, lint, CI | done |
-| 2 | Data layer: SQLite schema, FMP / FRED clients, offline synthetic data | planned |
+| 2 | Data layer: SQLite schema, FMP / FRED clients, offline synthetic data | done |
 | 3 | Portfolio valuation, NAV, futures fair value, equitization | planned |
 | 4 | Trade basket generation and pre-trade compliance | planned |
 | 5 | Risk metrics, daily workflow, backtest | planned |
