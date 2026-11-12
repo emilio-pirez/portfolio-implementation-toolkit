@@ -134,3 +134,9 @@ def test_approve_and_reject_proposed(loaded_engine, tmp_config_path, tmp_path) -
 def test_run_day_without_data(tmp_config_path) -> None:  # type: ignore[no-untyped-def]
     r = _cli("run-day", "--date", "2024-04-01", "--config", str(tmp_config_path))
     assert r.exit_code == 1
+
+
+def test_demo_command(loaded_engine, tmp_config_path) -> None:  # type: ignore[no-untyped-def]
+    r = _cli("demo", "--skip-backtest", "--config", str(tmp_config_path))
+    assert r.exit_code == 0, r.output
+    assert "Demo ready" in r.output and "streamlit run app/dashboard.py" in r.output

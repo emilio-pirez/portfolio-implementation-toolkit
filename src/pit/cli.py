@@ -1,7 +1,7 @@
 """Command-line interface (``pit``).
 
 Commands: ``version``, ``show-config``, ``load-data``, ``db-schema``,
-``run-day``, ``approve``, ``reject``, ``export-basket``, ``backtest``.
+``run-day``, ``approve``, ``reject``, ``export-basket``, ``backtest``, ``demo``.
 """
 
 from __future__ import annotations
@@ -283,6 +283,30 @@ def backtest(
     with pd.option_context("display.width", 120, "display.max_columns", 5):
         typer.echo(result.summary.to_string(float_format=lambda x: f"{x:,.4f}"))
     typer.echo(f"Saved {n_rows} daily rows to backtest_daily and CSVs to {out_dir}")
+
+
+@app.command()
+def demo(
+    skip_backtest: Annotated[
+        bool, typer.Option("--skip-backtest", help="Do not run the (1 minute) backtest.")
+    ] = False,
+    config: ConfigOption = None,
+) -> None:
+    """Build an offline demo database: synthetic data, ~6 weeks of run-day, backtest."""
+    from pit.demo import DEMO_BACKTEST, build_demo
+
+    cfg, engine = _engine(config)
+    try:
+        report = build_demo(
+            engine,
+            cfg,
+            progress=lambda msg, _f: typer.echo(f"  {msg}"),
+            backtest=None if skip_backtest else DEMO_BACKTEST,
+        )
+    finally:
+        engine.dispose()
+    done = "; ".join(report.steps) or "nothing to do (data already present)"
+    typer.echo(f"Demo ready: {done}. Open it with: streamlit run app/dashboard.py")
 
 
 if __name__ == "__main__":  # pragma: no cover
