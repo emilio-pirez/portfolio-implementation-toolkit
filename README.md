@@ -5,7 +5,7 @@
 A simplified simulation of a core portfolio manager's daily implementation workflow:
 cash equitization with index futures, basket generation, pre-trade compliance and monitoring.
 
-> **Status:** work in progress (Phase 2 of 7: data layer). See the roadmap below.
+> **Status:** work in progress (Phase 3 of 7: portfolio and equitization). See the roadmap below.
 
 ## What this is (and is not)
 
@@ -48,11 +48,23 @@ offline mode on clearly labelled synthetic data.
 |---|---|---|
 | 1 | Skeleton: packaging, config, lint, CI | done |
 | 2 | Data layer: SQLite schema, FMP / FRED clients, offline synthetic data | done |
-| 3 | Portfolio valuation, NAV, futures fair value, equitization | planned |
+| 3 | Portfolio valuation, NAV, futures fair value, equitization | done |
 | 4 | Trade basket generation and pre-trade compliance | planned |
 | 5 | Risk metrics, daily workflow, backtest | planned |
 | 6 | Streamlit dashboard | planned |
 | 7 | Documentation and polish | planned |
+
+## Example: equitizing a USD 25 m subscription
+
+```python
+from pit.equitization import size_futures
+
+size_futures(25_000_000, futures_price=6_030)
+# -> 82 ES (USD 24,723,000) + 9 MES (USD 271,350); USD 5,650 left un-equitized
+```
+
+See [docs/methodology.md](docs/methodology.md) for the formulas and
+[docs/interview_notes.md](docs/interview_notes.md) for the reasoning behind them.
 
 ## Project layout
 

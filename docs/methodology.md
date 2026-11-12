@@ -106,9 +106,110 @@ r_i,t = beta_i r_m,t + r_sector(i),t + e_i,t - 1/2 var_i dt
 The seed is fixed (`data.synthetic_seed`), and shocks are drawn one day at a
 time, so extending the end date never changes history already generated.
 
+## Portfolio valuation
+
+| Quantity | Definition |
+|---|---|
+| Equity market value | sum of shares x close |
+| Futures notional | contracts x futures price x multiplier |
+| NAV | equity MV + cash + unsettled futures P&L |
+| Total exposure | (equity MV + futures notional) / NAV |
+| Cash % | physical cash / NAV (what the cash limits apply to) |
+| Unequitized cash | cash - futures notional (cash truly out of the market) |
+
+A futures position has no market value of its own: gains and losses are paid
+every day as **variation margin**. The toolkit keeps the P&L since the last
+settlement as "unsettled" and moves it into cash at the daily settlement, so
+NAV is unchanged by the settlement itself.
+
+**Inception:** the fund invests NAV x (1 - cash buffer) at the model weights.
+Shares are rounded **down**, so the purchase never needs more cash than the
+fund has; the rounding residue stays in cash.
+
+## Index futures
+
+**Contracts.** E-mini S&P 500 (ES, USD 50 x index) and Micro E-mini (MES,
+USD 5 x index). They expire on the third Friday of March, June, September and
+December. Codes follow CME notation: `ESZ6` = December 2026.
+
+**Fair value (cost of carry).**
+
+F = S x exp((r - q) x T)
+
+- S: S&P 500 level (SPX close)
+- r: 3-month T-Bill (FRED DTB3), used as a proxy for the financing rate
+- q: index dividend yield, 1.3 % (config)
+- T: years to expiry, ACT/365
+
+Buying the future instead of the stocks means you keep the cash (and earn r)
+but give up the dividends (q). With r > q the future trades above spot.
+
+*Approximation:* production would use the traded contract price. The real
+basis also reflects the market's financing spread, which makes rolls cheap or
+rich relative to fair value.
+
+**Roll.** A contract is flagged for roll when it is 5 business days or fewer
+from expiry (`futures.roll_window_business_days`). Inside that window new
+exposure goes straight into the next contract, and existing positions are
+closed and reopened in it. The roll spread is not simulated.
+
+## Equitization
+
+**Goal:** keep the fund fully exposed to the market while cash is waiting to
+be invested (subscriptions) or waiting to be paid out (redemptions).
+
+**One rule for every case, the futures overlay.** On any day the fund
+should hold futures against the cash it does not need to keep:
+
+    cash to equitize = max(cash - buffer% x NAV, 0)
+    target notional  = cash to equitize x beta_target
+    N_ES  = floor(target notional / (F x 50))
+    N_MES = round((target notional - N_ES x F x 50) / (F x 5))
+
+- **ES is floored** so the big contract never adds exposure beyond the cash.
+- **MES is rounded** to fill the gap. What is left is at most half a micro
+  contract (about USD 15k when F = 6,000), i.e. 0.003 % of a USD 500 m fund.
+  It can be slightly negative (a tiny over-exposure).
+- **Cash buffer (0.5 % of NAV)** is never equitized. It pays futures margin,
+  fees and small redemptions without forcing trades. The cost is exposure of
+  about 99.5 % instead of 100 %.
+- **beta_target** (default 1) lets the PM size the hedge to the portfolio's
+  beta instead of the index's.
+
+Worked example (no buffer): USD 25 m subscription, F = 6,030
+
+| Step | Value |
+|---|---|
+| ES contract notional | 6,030 x 50 = 301,500 |
+| N_ES | floor(25,000,000 / 301,500) = floor(82.92) = **82**, USD 24,723,000 |
+| Residual | 277,000 |
+| MES contract notional | 6,030 x 5 = 30,150 |
+| N_MES | round(277,000 / 30,150) = round(9.19) = **9**, USD 271,350 |
+| Cash left un-equitized | **USD 5,650** |
+
+**Subscription:** cash rises, so the overlay buys futures the same day.
+
+**De-equitization:** when the stock basket is bought, cash falls by the
+amount invested, so the overlay sells about USD invested / (F x multiplier)
+contracts. Futures are unwound in proportion to the dollars that went into
+stocks, and total exposure stays the same.
+
+**Redemption:**
+1. Cash needed = redemption + buffer on the post-redemption NAV.
+2. If cash covers it, pay from cash. The futures that were equitizing that
+   cash are sold.
+3. If not, sell stocks **pro rata** for the shortfall. Selling the same
+   fraction of every position keeps the weights, and so the active risk,
+   unchanged. Shares are rounded up so that enough cash is raised.
+4. Resize the overlay.
+
+In the simulation the stock sales execute at the close on the same day, with
+no market impact. In production they would be a basket that goes through
+pre-trade compliance (Phase 4), and settlement timing (T+1) would be matched
+to the redemption's payment date.
+
 ## Sections to be added
 
-- Futures fair value and equitization (Phase 3)
 - Basket construction and transaction costs (Phase 4)
 - Compliance checks (Phase 4)
 - Beta, ex-ante tracking error and cash drag (Phase 5)
