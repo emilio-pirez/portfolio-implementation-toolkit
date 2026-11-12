@@ -231,3 +231,27 @@ class AuditLog(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime, index=True)
     event: Mapped[str] = mapped_column(String(64), index=True)
     details_json: Mapped[str] = mapped_column(Text)
+
+
+# --------------------------------------------------------------------------- analytics
+
+
+class BacktestDaily(Base):
+    """One row per backtest run, scenario and day (feeds the dashboard)."""
+
+    __tablename__ = "backtest_daily"
+
+    run_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    scenario: Mapped[str] = mapped_column(String(32), primary_key=True)
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    nav: Mapped[float] = mapped_column(Float)
+    flow: Mapped[float] = mapped_column(Float)
+    fund_return: Mapped[float | None] = mapped_column(Float)
+    benchmark_return: Mapped[float | None] = mapped_column(Float)
+    cash_pct: Mapped[float] = mapped_column(Float)
+    unequitized_pct: Mapped[float] = mapped_column(Float)
+    exposure: Mapped[float] = mapped_column(Float)
+    futures_notional: Mapped[float] = mapped_column(Float)
+    cash_drag: Mapped[float | None] = mapped_column(Float)
+    hard_breaches: Mapped[int] = mapped_column(Integer)
+    soft_breaches: Mapped[int] = mapped_column(Integer)

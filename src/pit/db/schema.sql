@@ -11,6 +11,24 @@ CREATE TABLE audit_log (
 CREATE INDEX ix_audit_log_event ON audit_log (event);
 CREATE INDEX ix_audit_log_timestamp ON audit_log (timestamp);
 
+CREATE TABLE backtest_daily (
+	run_id VARCHAR(36) NOT NULL,
+	scenario VARCHAR(32) NOT NULL,
+	date DATE NOT NULL,
+	nav FLOAT NOT NULL,
+	flow FLOAT NOT NULL,
+	fund_return FLOAT,
+	benchmark_return FLOAT,
+	cash_pct FLOAT NOT NULL,
+	unequitized_pct FLOAT NOT NULL,
+	exposure FLOAT NOT NULL,
+	futures_notional FLOAT NOT NULL,
+	cash_drag FLOAT,
+	hard_breaches INTEGER NOT NULL,
+	soft_breaches INTEGER NOT NULL,
+	PRIMARY KEY (run_id, scenario, date)
+);
+
 CREATE TABLE benchmark_weights (
 	date DATE NOT NULL,
 	ticker VARCHAR(16) NOT NULL,
