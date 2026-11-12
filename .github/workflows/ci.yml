@@ -35,4 +35,4 @@ jobs:
         run: mypy
 
       - name: Tests
-        run: pytest --cov=pit --cov-report=term-missing
+        run: pytest --cov=pit --cov-report=term-missing --cov-fail-under=80
