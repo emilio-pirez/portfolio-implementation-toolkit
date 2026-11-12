@@ -109,7 +109,9 @@ def test_empty_database_queries(engine: Engine, cfg: AppConfig) -> None:
 def test_build_demo_from_empty_database(cfg: AppConfig, tmp_path: Path) -> None:
     """Fresh clone: no prices at all -> offline data is loaded, then days are run."""
     eng = make_engine(f"sqlite:///{tmp_path / 'fresh.db'}")
-    report = build_demo(eng, cfg, days=(date(2026, 3, 16), date(2026, 3, 17)), backtest=None)
+    report = build_demo(
+        eng, cfg, days=(date(2026, 3, 16), date(2026, 3, 17)), backtest=None, use_snapshot=False
+    )
     assert report.steps == ["loaded offline data", "processed 2 days"]
     again = build_demo(eng, cfg, days=(date(2026, 3, 16), date(2026, 3, 17)), backtest=None)
     assert again.steps == []  # idempotent: existing data is never overwritten
@@ -132,3 +134,61 @@ def test_every_page_renders(demo_engine: Engine, tmp_config_path: Path, monkeypa
     at.sidebar.radio(key="page").set_value("Overview").run()
     labels = [m.label for m in at.metric]
     assert {"NAV (USD)", "Total exposure", "Net cash"} <= set(labels)
+
+
+# --------------------------------------------------------------------------- demo snapshot
+
+
+def test_committed_snapshot_matches_schema() -> None:
+    """data/demo/demo.db must stay compatible with the models (regenerate with
+    `pit demo --snapshot-out data/demo/demo.db` after a schema change)."""
+    from sqlalchemy import inspect
+
+    from pit.config import PROJECT_ROOT
+    from pit.db.models import Base
+
+    snap = PROJECT_ROOT / "data" / "demo" / "demo.db"
+    eng = make_engine(f"sqlite:///{snap}")
+    insp = inspect(eng)
+    for table in Base.metadata.sorted_tables:
+        cols = {c["name"] for c in insp.get_columns(table.name)}
+        assert cols == {c.name for c in table.columns}, table.name
+    assert q.is_synthetic(eng) and q.has_positions(eng) and q.has_backtest(eng)
+    eng.dispose()
+
+
+def test_empty_database_restores_snapshot(cfg: AppConfig, tmp_path: Path) -> None:
+    from pit.config import PROJECT_ROOT
+    from pit.db import read_audit_log, session_scope
+
+    snap = str(PROJECT_ROOT / "data" / "demo" / "demo.db")
+    cfg2 = cfg.model_copy(update={"data": cfg.data.model_copy(update={"demo_snapshot_file": snap})})
+    eng = make_engine(f"sqlite:///{tmp_path / 'cloud.db'}")
+    report = build_demo(eng, cfg2)
+    assert report.steps == ["restored demo snapshot"]
+    assert q.has_positions(eng) and q.has_backtest(eng)
+    with session_scope(eng) as s:
+        assert read_audit_log(s).iloc[0]["event"] == "DEMO_RESTORED"
+    eng.dispose()
+
+
+def test_write_snapshot(cfg: AppConfig, tmp_path: Path) -> None:
+    from pit.demo import write_snapshot
+
+    out = tmp_path / "snap" / "demo.db"
+    report = write_snapshot(cfg, out, days=(date(2026, 3, 16), date(2026, 3, 17)), backtest=None)
+    assert out.exists() and report.steps[-1].startswith("snapshot written")
+    eng = make_engine(f"sqlite:///{out}")
+    assert len(q.position_dates(eng)) == 2
+    eng.dispose()
+
+
+def test_config_found_from_working_directory(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    """Non-editable installs: the package is outside the repo, so config.yaml is
+    looked up in the working directory (the repo root on Streamlit Cloud)."""
+    import pit.config as config_module
+
+    monkeypatch.delenv(config_module.CONFIG_ENV_VAR, raising=False)
+    monkeypatch.setattr(config_module, "DEFAULT_CONFIG_PATH", tmp_path / "missing.yaml")
+    monkeypatch.chdir(tmp_path)
+    assert config_module.resolve_config_path() == tmp_path / "config.yaml"

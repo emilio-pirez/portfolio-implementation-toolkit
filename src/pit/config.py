@@ -81,6 +81,7 @@ class DataConfig(_StrictModel):
     risk_free_series: str = "DTB3"
     synthetic_seed: int = 42
     synthetic_risk_free_rate: float = Field(ge=0, lt=1)
+    demo_snapshot_file: str = "data/demo/demo.db"
 
 
 class ContractSpec(_StrictModel):
@@ -229,13 +230,20 @@ class AppConfig(_StrictModel):
 
 
 def resolve_config_path(path: str | Path | None = None) -> Path:
-    """Pick the config file: explicit argument > ``PIT_CONFIG_PATH`` > repo default."""
+    """Pick the config file: explicit argument > ``PIT_CONFIG_PATH`` > repo default
+    > ``config.yaml`` in the working directory.
+
+    The last fallback covers non-editable installs (e.g. a cloud deployment
+    running ``pip install .``), where the package no longer sits inside the repo.
+    """
     if path is not None:
         return Path(path)
     env_path = os.environ.get(CONFIG_ENV_VAR)
     if env_path:
         return Path(env_path)
-    return DEFAULT_CONFIG_PATH
+    if DEFAULT_CONFIG_PATH.exists():
+        return DEFAULT_CONFIG_PATH
+    return Path.cwd() / "config.yaml"
 
 
 def load_config(path: str | Path | None = None) -> AppConfig:
