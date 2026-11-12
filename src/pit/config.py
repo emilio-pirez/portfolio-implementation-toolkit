@@ -109,6 +109,7 @@ class EquitizationConfig(_StrictModel):
 class OrdersConfig(_StrictModel):
     round_lot: int = Field(ge=1)
     no_trade_threshold_bps: float = Field(ge=0)
+    adv_window_days: int = Field(ge=1)
 
 
 class CostConfig(_StrictModel):

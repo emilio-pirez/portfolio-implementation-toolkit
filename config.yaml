@@ -46,6 +46,7 @@ equitization:
 orders:
   round_lot: 1                      # trade in whole shares
   no_trade_threshold_bps: 5         # skip trades whose |delta weight| < 5 bp
+  adv_window_days: 20               # average daily volume window for the ADV check
 
 costs:
   commission_bps: 1.0               # explicit commission per notional traded
