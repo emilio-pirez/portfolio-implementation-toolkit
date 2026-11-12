@@ -4,7 +4,8 @@ Run with:  streamlit run app/dashboard.py
 
 On a fresh clone (empty database) the first launch builds an offline demo:
 synthetic market data, about six weeks of `run-day` with the example flows,
-and the with/without-equitization backtest. Takes about a minute, once.
+and the with/without-equitization backtest. If `data/demo/demo.db` exists (it is
+committed), it is simply copied, which takes seconds.
 """
 
 from __future__ import annotations
@@ -69,7 +70,7 @@ def bootstrap(engine: Engine, cfg: AppConfig) -> None:
     """
     if q.data_sources(engine) and q.has_positions(engine):
         return
-    with st.status("First launch: building an offline demo (about 1 minute)...", expanded=True):
+    with st.status("First launch: preparing the offline demo...", expanded=True):
         bar = st.progress(0.0, text="Waiting for the demo build...")
         with demo_lock():
             if not (q.data_sources(engine) and q.has_positions(engine)):

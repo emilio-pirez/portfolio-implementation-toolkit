@@ -8,6 +8,7 @@ repos:
       - id: check-toml
       - id: check-added-large-files
         args: ["--maxkb=1000"]
+        exclude: ^data/demo/demo\.db$  # prebuilt demo database (pit demo --snapshot-out)
       - id: detect-private-key
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9

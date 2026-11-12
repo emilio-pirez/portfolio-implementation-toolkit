@@ -290,10 +290,21 @@ def demo(
     skip_backtest: Annotated[
         bool, typer.Option("--skip-backtest", help="Do not run the (1 minute) backtest.")
     ] = False,
+    snapshot_out: Annotated[
+        Path | None,
+        typer.Option(help="Build a fresh demo and save it here (e.g. data/demo/demo.db)."),
+    ] = None,
     config: ConfigOption = None,
 ) -> None:
     """Build an offline demo database: synthetic data, ~6 weeks of run-day, backtest."""
-    from pit.demo import DEMO_BACKTEST, build_demo
+    from pit.demo import DEMO_BACKTEST, build_demo, write_snapshot
+
+    if snapshot_out is not None:
+        report = write_snapshot(
+            load_config(config), snapshot_out, lambda msg, _f: typer.echo(f"  {msg}")
+        )
+        typer.echo(f"Snapshot ready: {'; '.join(report.steps)}")
+        return
 
     cfg, engine = _engine(config)
     try:

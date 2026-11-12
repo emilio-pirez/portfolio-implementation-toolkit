@@ -24,6 +24,7 @@ data:
   risk_free_series: "DTB3"          # FRED 3-month T-Bill, secondary market rate
   synthetic_seed: 42                # fixed seed so offline runs are reproducible
   synthetic_risk_free_rate: 0.04    # flat T-Bill rate used in offline mode
+  demo_snapshot_file: "data/demo/demo.db"   # prebuilt demo database (pit demo --snapshot-out)
 
 futures:
   # Equitization instruments. Fair value F = S * exp((r - q) * T) is used as the
