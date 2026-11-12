@@ -1,1 +1,6 @@
-"""Market data: FMP / FRED clients with local cache and synthetic offline generator (Phase 2)."""
+"""Market data: FMP / FRED clients, SQLite cache, and synthetic offline generator."""
+
+from pit.data.http import DataSourceError
+from pit.data.loader import LoadSummary, load_data
+
+__all__ = ["DataSourceError", "LoadSummary", "load_data"]
