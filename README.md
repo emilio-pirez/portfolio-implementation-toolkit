@@ -5,7 +5,7 @@
 A simplified simulation of a core portfolio manager's daily implementation workflow:
 cash equitization with index futures, basket generation, pre-trade compliance and monitoring.
 
-> **Status:** work in progress (Phase 5 of 7: risk model, daily workflow and backtest). See the roadmap below.
+> **Status:** work in progress (Phase 6 of 7: dashboard). See the roadmap below.
 
 ## What this is (and is not)
 
@@ -24,6 +24,12 @@ git clone https://github.com/emilio-pirez/portfolio-implementation-toolkit.git
 cd portfolio-implementation-toolkit
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
+streamlit run app/dashboard.py       # first launch builds an offline demo (~1 min)
+```
+
+Or step by step from the command line:
+
+```bash
 pit load-data --offline              # synthetic data, no API keys needed
 pit run-day --date 2026-03-16        # USD 25 m subscription: equitize, basket, compliance
 pit run-day --date 2026-03-17        # basket filled, futures unwound
@@ -48,6 +54,7 @@ offline mode on clearly labelled synthetic data.
 | `pit approve / reject --batch-id ID --reason ...` | Manual decision on a basket with SOFT alerts |
 | `pit export-basket --batch-id ID --out file.csv` | Trading-desk file for a stored basket |
 | `pit backtest [--start --end --flows --lag]` | Same workflow over a period, with vs without equitization |
+| `pit demo [--skip-backtest]` | Build the offline demo database used by the dashboard |
 
 ## Roadmap
 
@@ -58,7 +65,7 @@ offline mode on clearly labelled synthetic data.
 | 3 | Portfolio valuation, NAV, futures fair value, equitization | done |
 | 4 | Trade basket generation and pre-trade compliance | done |
 | 5 | Risk metrics, daily workflow, backtest | done |
-| 6 | Streamlit dashboard | planned |
+| 6 | Streamlit dashboard | done |
 | 7 | Documentation and polish | planned |
 
 ## What it does
@@ -88,6 +95,22 @@ offline mode on clearly labelled synthetic data.
 | Number of holdings | 30 - 80 | SOFT |
 | Restricted list | none held or bought | HARD |
 | Order size vs ADV | 10 % | SOFT |
+
+## Dashboard
+
+`streamlit run app/dashboard.py` opens six pages. If the database is empty,
+the first launch builds an offline demo by itself: synthetic data, six weeks of
+`run-day` with the example flows, and the backtest. A banner is shown on every
+page whenever the data is synthetic.
+
+| Page | What it shows |
+|---|---|
+| Overview | NAV, total exposure vs. the 98-102 % limits, cash and net cash, futures, active alerts |
+| Positions vs. Model | Weights vs. target vs. benchmark, by stock and by sector; largest deviations |
+| Order Blotter | Every basket with its status, orders and costs; desk CSV download |
+| Compliance | Pre-trade checks per basket, post-trade checks per day, breach history |
+| Cash & Equitization | Backtest: idle cash, cumulative cash drag and exposure, with vs. without futures |
+| Audit Log | Every event, filterable by type, date and text, with the full JSON details |
 
 ## Key results (synthetic data)
 
@@ -124,7 +147,7 @@ See [docs/methodology.md](docs/methodology.md) for the formulas and
 ```
 config.yaml          # every limit and assumption, in one reviewable file
 src/pit/             # the package (db, data, portfolio, equitization, orders, compliance, risk, workflow)
-app/dashboard.py     # Streamlit dashboard
+app/dashboard.py     # Streamlit dashboard (6 pages)
 docs/                # methodology and design notes
 tests/               # pytest suite
 ```

@@ -152,3 +152,20 @@ and scale the buys.
 - A commercial risk model (factor-based, e.g. Barra or Axioma) instead of a
   sample covariance.
 - Settlement timing (T+1 for stocks) matched to the payment date of each flow.
+
+## Phase 6 - Dashboard
+
+**What would you look at first every morning?**
+1. Total exposure and net cash against their limits: is the fund fully
+   invested?
+2. Alerts: post-trade breaches, baskets waiting for approval, futures that
+   need to roll.
+3. Today's flows and the basket they generate, with its pre-trade results.
+4. The positions furthest from the model.
+
+The Overview page is built in that order. Everything else is one click away,
+and the audit log answers "what happened and who decided it" for any day.
+
+**Why build the dashboard on top of the database instead of recomputing?**
+The dashboard only reads what the workflow wrote. What the PM sees is exactly
+what was decided and logged that day, which is the point of an audit trail.
