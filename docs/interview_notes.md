@@ -1,7 +1,37 @@
 # Interview notes
 
-Short answers to the questions this project is designed to support. Updated
-at the end of each phase.
+Short answers to the questions this project is designed to support, grouped
+by the phase that built the relevant piece. Numbers come from the synthetic
+offline data.
+
+**The six core questions**
+
+| Question | Answer |
+|---|---|
+| Why equitize with futures and not with an ETF like SPY? | [Phase 3](#phase-3---portfolio-and-equitization) |
+| How do you calculate how many contracts to buy? What happens with the residual? | [Phase 3](#phase-3---portfolio-and-equitization) |
+| What is cash drag and how much does it cost in a bull year? | [Phase 5](#phase-5---risk-and-workflow) |
+| Which controls do you run before sending a basket, and which ones block it? | [Phase 4](#phase-4---orders-and-compliance) |
+| How do you handle a large redemption? | [Phase 3](#phase-3---portfolio-and-equitization) |
+| What would you do differently in production? | [Phase 4](#phase-4---orders-and-compliance) and [Phase 5](#phase-5---risk-and-workflow) |
+
+## The project in 60 seconds
+
+"I built a simplified version of a core PM's daily implementation workflow.
+A model portfolio comes in as target weights, and client flows come in as
+cash. Every day the tool marks the book to market and equitizes new cash with
+E-mini and Micro E-mini futures the same day. It builds the stock basket
+toward the model, runs ten pre-trade checks on the pro-forma portfolio
+(including ex-ante tracking error and beta), and blocks anything that breaks
+a hard limit. The basket fills the next day and the futures are unwound.
+Everything is written to an audit log and shown in a dashboard.
+
+The backtest compares the same fund with and without equitization. The main
+benefit was not return, about 1 bp a year when cash is invested the next day,
+but control: with futures the fund never broke its exposure or cash limits,
+and without them it did on 26 days. Building it also showed me why a desk
+re-checks cash at execution: a redemption paid between generating and
+filling a basket made the fund overdraw in my first version."
 
 ## Phase 1 - Skeleton
 

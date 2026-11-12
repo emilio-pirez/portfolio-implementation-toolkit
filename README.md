@@ -1,157 +1,230 @@
 # Portfolio Implementation Toolkit
 
 [![CI](https://github.com/emilio-pirez/portfolio-implementation-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/emilio-pirez/portfolio-implementation-toolkit/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
+![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen)
+[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-A simplified simulation of a core portfolio manager's daily implementation workflow:
-cash equitization with index futures, basket generation, pre-trade compliance and monitoring.
+**A simplified simulation of a core portfolio manager's daily implementation
+workflow: cash equitization with index futures, basket generation, pre-trade
+compliance and monitoring.**
 
-> **Status:** work in progress (Phase 6 of 7: dashboard). See the roadmap below.
+![Overview page of the dashboard](docs/screenshots/01_overview.png)
 
-## What this is (and is not)
+## Why
 
-This project models how a portfolio manager *implements* a portfolio: receiving
-cash flows, keeping the fund fully invested with index futures, generating the
-trade basket toward model weights, and checking every basket against risk and
-compliance limits before it goes to the trading desk. All of it is logged for audit.
+A core equity PM is handed a model portfolio and has to *implement* it, every
+day, without breaking anything:
 
-It is **not** an alpha model or a trading strategy. Target weights are an input
-(the "PM's model"), read from `data/inputs/target_weights.csv`.
+- **Cash drag.** Client subscriptions arrive as cash. Until the stocks are
+  bought, that cash is out of the market and the fund lags its benchmark. The
+  standard fix is to **equitize** it with index futures the same day and unwind
+  them as the stock basket fills.
+- **Limits.** Every basket must respect issuer, sector, cash, exposure,
+  tracking-error, liquidity and restricted-list limits **before** it reaches
+  the trading desk.
+- **Traceability.** Every flow, trade, breach and approval must be
+  reconstructible after the fact.
 
-## Quickstart
+This project builds that workflow end to end in Python. It is **not** an alpha
+model or a trading strategy: the target weights are an input (the PM's model,
+`data/inputs/target_weights.csv`). The value is in implementing them well,
+controlling risk and documenting every decision.
 
-```bash
-git clone https://github.com/emilio-pirez/portfolio-implementation-toolkit.git
-cd portfolio-implementation-toolkit
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-streamlit run app/dashboard.py       # first launch builds an offline demo (~1 min)
-```
+## Demo
 
-Or step by step from the command line:
-
-```bash
-pit load-data --offline              # synthetic data, no API keys needed
-pit run-day --date 2026-03-16        # USD 25 m subscription: equitize, basket, compliance
-pit run-day --date 2026-03-17        # basket filled, futures unwound
-pit backtest                         # with vs without equitization, ~1 minute
-pytest
-```
-
-Market data API keys are optional. To use live data, copy `.env.example` to
-`.env`, add free keys from [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs)
-and [FRED](https://fred.stlouisfed.org/docs/api/api_key.html), and run
-`pit load-data`. Without keys, or if a provider fails, the toolkit falls back to
-offline mode on clearly labelled synthetic data.
-
-## CLI
-
-| Command | What it does |
-|---|---|
-| `pit load-data [--offline]` | Load prices, benchmark weights, T-Bill rate and model weights into SQLite |
-| `pit show-config` | Validate `config.yaml` and print key parameters |
-| `pit db-schema` | Print the database DDL (SQLite or Postgres) |
-| `pit run-day --date D` | Process one day: mark to market, fill yesterday's basket, flows, futures, new basket, compliance, audit log |
-| `pit approve / reject --batch-id ID --reason ...` | Manual decision on a basket with SOFT alerts |
-| `pit export-basket --batch-id ID --out file.csv` | Trading-desk file for a stored basket |
-| `pit backtest [--start --end --flows --lag]` | Same workflow over a period, with vs without equitization |
-| `pit demo [--skip-backtest]` | Build the offline demo database used by the dashboard |
-
-## Roadmap
-
-| Phase | Scope | Status |
-|---|---|---|
-| 1 | Skeleton: packaging, config, lint, CI | done |
-| 2 | Data layer: SQLite schema, FMP / FRED clients, offline synthetic data | done |
-| 3 | Portfolio valuation, NAV, futures fair value, equitization | done |
-| 4 | Trade basket generation and pre-trade compliance | done |
-| 5 | Risk metrics, daily workflow, backtest | done |
-| 6 | Streamlit dashboard | done |
-| 7 | Documentation and polish | planned |
-
-## What it does
-
-1. **Equitizes cash with index futures.** Subscriptions are covered the same
-   day with E-mini / Micro E-mini S&P 500 futures (sized with floor ES +
-   rounded MES). The futures are unwound as the stocks are bought.
-2. **Builds the trade basket** toward the PM's model weights, with a no-trade
-   band, lot rounding and estimated costs, and exports the trading-desk CSV.
-3. **Runs 10 pre-trade compliance checks** on the pro-forma portfolio.
-   HARD breaches block the basket; SOFT breaches need a documented manual approval.
-4. **Measures risk ex-ante** (beta, tracking error with a Ledoit-Wolf
-   covariance) and **runs the whole day** (`pit run-day`). Every step goes to
-   an append-only audit log in SQLite.
-5. **Backtests** the workflow with and without equitization to measure cash
-   drag and limit breaches.
-
-| Check | Limit | Severity |
-|---|---|---|
-| Max issuer weight | 8 % | HARD |
-| Max sector weight | 30 % | HARD |
-| Sector active weight vs benchmark | +/- 10 pts | SOFT |
-| Cash, net of futures | 0.25 % - 3 % of NAV | HARD |
-| Total exposure (stocks + futures) | 98 % - 102 % | HARD |
-| Ex-ante tracking error | 6 % | SOFT |
-| Ex-ante beta | 0.85 - 1.15 | SOFT |
-| Number of holdings | 30 - 80 | SOFT |
-| Restricted list | none held or bought | HARD |
-| Order size vs ADV | 10 % | SOFT |
-
-## Dashboard
-
-`streamlit run app/dashboard.py` opens six pages. If the database is empty,
-the first launch builds an offline demo by itself: synthetic data, six weeks of
-`run-day` with the example flows, and the backtest. A banner is shown on every
+`streamlit run app/dashboard.py` opens six pages. On a fresh clone the first
+launch builds an offline demo by itself (about a minute). A banner marks every
 page whenever the data is synthetic.
 
-| Page | What it shows |
+| | |
 |---|---|
-| Overview | NAV, total exposure vs. the 98-102 % limits, cash and net cash, futures, active alerts |
-| Positions vs. Model | Weights vs. target vs. benchmark, by stock and by sector; largest deviations |
-| Order Blotter | Every basket with its status, orders and costs; desk CSV download |
-| Compliance | Pre-trade checks per basket, post-trade checks per day, breach history |
-| Cash & Equitization | Backtest: idle cash, cumulative cash drag and exposure, with vs. without futures |
-| Audit Log | Every event, filterable by type, date and text, with the full JSON details |
+| ![Positions vs. Model](docs/screenshots/02_positions.png) **Positions vs. Model.** Portfolio vs. target vs. benchmark, by sector and stock | ![Order Blotter](docs/screenshots/03_order_blotter.png) **Order Blotter.** Every basket, its status and costs; desk CSV export |
+| ![Compliance](docs/screenshots/04_compliance.png) **Compliance.** Pre- and post-trade checks, HARD / SOFT, breach history | ![Cash & Equitization](docs/screenshots/05_cash_equitization.png) **Cash & Equitization.** Idle cash and cash drag, with vs. without futures |
 
-## Key results (synthetic data)
+The sixth page is the **Audit Log**: every event, filterable, with its full
+details ([screenshot](docs/screenshots/06_audit_log.png)).
 
-Backtest from 2-Jan-2025 to 30-Oct-2026 (477 trading days, 45 random client
-flows of 0.5-5 % of NAV). The stock basket is filled one day after the flow
-(lag 1) or three days after (lag 3).
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Data["Data (pit load-data)"]
+        FMP["FMP<br/>prices, constituents, market caps"]
+        FRED["FRED<br/>3M T-Bill (DTB3)"]
+        SYN["Offline mode<br/>synthetic correlated GBM"]
+    end
+    IN["PM inputs<br/>target_weights.csv<br/>cash_flows.csv<br/>restricted_list.csv"]
+    DB[("SQLite<br/>prices · positions · orders<br/>compliance_checks · audit_log")]
+
+    subgraph Day["pit run-day: one trading day"]
+        direction TB
+        M["1 Mark to market<br/>settle futures margin, accrue interest"]
+        F["2 Fill yesterday's basket<br/>then de-equitize"]
+        C["3 Client flows<br/>subscription: buy ES/MES now<br/>redemption: cash, then pro-rata sales"]
+        B["4 New basket toward the model<br/>no-trade band, cash constraint, costs"]
+        P["5 Pre-trade compliance<br/>10 checks on the pro-forma book<br/>incl. ex-ante TE and beta"]
+        S{"HARD breach?"}
+        R["REJECTED"]
+        A["APPROVED / PROPOSED<br/>desk CSV, filled next day"]
+        T["6 Post-trade checks<br/>save positions, audit log"]
+        M --> F --> C --> B --> P --> S
+        S -- yes --> R
+        S -- no --> A
+        R --> T
+        A --> T
+    end
+
+    FMP --> DB
+    FRED --> DB
+    SYN --> DB
+    IN --> DB
+    DB --> Day
+    Day --> DB
+    DB --> DASH["Streamlit dashboard<br/>6 pages"]
+    DB --> BT["pit backtest<br/>same day loop, with vs without futures"]
+```
+
+## Key results
+
+Backtest on **synthetic data** from 2-Jan-2025 to 30-Oct-2026: 477 trading days,
+45 random client flows of 0.5-5 % of NAV, USD 500 m fund, 55-stock model.
+The stock basket is filled one day after the flow (lag 1) or three days after
+(lag 3).
 
 | | Lag 1: with equitization | Lag 1: without | Lag 3: with | Lag 3: without |
 |---|---|---|---|---|
 | Max idle cash (% NAV) | 0.50 % | 5.61 % | 0.50 % | 7.79 % |
 | Avg total exposure | 99.50 % | 99.13 % | 99.50 % | 98.65 % |
 | Cash drag, realized (bp/yr) | 2.1 | 2.2 | 2.1 | 12.1 |
-| Days breaking a HARD limit | **0** | **26** | **0** | **95** |
+| Cash drag, expected (bp/yr) | 1.6 | 2.8 | 1.6 | 4.3 |
+| Days breaking a HARD limit (post-trade) | **0** | **26** | **0** | **95** |
 
-Equitization keeps the fund fully exposed and inside its exposure and cash
-limits every day. The return benefit is small when cash is invested the next
-day, and grows the longer cash would otherwise wait (about +8 bp/yr at lag 3).
-Details: [docs/methodology.md](docs/methodology.md#backtest-pit-backtest).
+**Compliance:** 476 baskets were generated in the lag-1 run. None was blocked
+by a HARD check and none raised a SOFT alert, because the basket generator
+caps buys at the available cash and the model sits inside every limit.
+Without equitization, the *end-of-day* book still broke the 98 % exposure /
+3 % cash limits on 26 days. Blocking is covered by the tests: for example, a
+basket that puts 12 % in one name is REJECTED on both the issuer and the
+sector limit.
 
-## Example: equitizing a USD 25 m subscription
+**How to read it.** Equitization keeps the fund fully exposed and inside its
+limits every day. With next-day execution the return benefit is small
+(~1 bp/yr expected) and within the noise. It grows with how long cash would
+otherwise wait: about +8 bp/yr of tracking difference at lag 3. The
+remaining ~2 bp/yr of drag comes from the 0.5 % cash buffer, which is never
+equitized by design.
 
-```python
-from pit.equitization import size_futures
+## Quickstart
 
-size_futures(25_000_000, futures_price=6_030)
-# -> 82 ES (USD 24,723,000) + 9 MES (USD 271,350); USD 5,650 left un-equitized
+Python 3.11+.
+
+```bash
+git clone https://github.com/emilio-pirez/portfolio-implementation-toolkit.git
+cd portfolio-implementation-toolkit
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+streamlit run app/dashboard.py
 ```
 
-See [docs/methodology.md](docs/methodology.md) for the formulas and
-[docs/interview_notes.md](docs/interview_notes.md) for the reasoning behind them.
+The first launch builds the offline demo (~1 minute); after that the dashboard
+opens immediately. Everything also runs from the command line:
+
+```bash
+pit load-data --offline              # synthetic data, no API keys needed
+pit run-day --date 2026-03-16        # USD 25 m subscription: equitize, basket, compliance
+pit run-day --date 2026-03-17        # basket filled, futures unwound
+pit backtest                         # with vs without equitization (~1 minute)
+pytest                               # 198 tests, ~2 minutes
+```
+
+**Live data (optional).** Copy `.env.example` to `.env` and add free keys from
+[Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs) and
+[FRED](https://fred.stlouisfed.org/docs/api/api_key.html), then run
+`pit load-data`. Without keys, or if a provider fails, the toolkit falls back to
+clearly labelled synthetic data.
+
+| Command | What it does |
+|---|---|
+| `pit load-data [--offline]` | Load prices, benchmark weights, T-Bill rate and model weights into SQLite |
+| `pit run-day --date D` | Process one day: mark to market, fill yesterday's basket, flows, futures, new basket, compliance, audit log |
+| `pit approve / reject --batch-id ID --reason ...` | Manual decision on a basket with SOFT alerts |
+| `pit export-basket --batch-id ID --out file.csv` | Trading-desk file (`ticker, side, quantity, est_price, est_notional`) |
+| `pit backtest [--start --end --flows --lag]` | Same workflow over a period, with vs. without equitization |
+| `pit demo [--skip-backtest]` | Build the offline demo database used by the dashboard |
+| `pit show-config` / `pit db-schema` | Validate `config.yaml` / print the database DDL (SQLite or Postgres) |
+
+## What's inside
+
+| Module | Responsibility |
+|---|---|
+| `equitization` | Futures fair value `F = S·e^((r−q)T)`, quarterly expiries and rolls, contract sizing (floor ES + round MES), futures overlay for subscriptions, de-equitization and redemptions |
+| `orders` | Basket toward the model: lot rounding, 5 bp no-trade band, cash constraint, linear cost model, desk CSV |
+| `compliance` | 10 checks on the pro-forma portfolio. HARD blocks the basket (REJECTED); SOFT requires approval with a written reason |
+| `risk` | Beta, ex-ante tracking error with the benchmark as an asset, Ledoit-Wolf covariance, cash drag |
+| `workflow` | `run-day` (one pure daily step, persisted with an append-only audit trail) and the backtest |
+| `data`, `db` | FMP / FRED clients with retries, SQLite cache, offline generator; SQLAlchemy schema with CHECK constraints |
+| `app/dashboard.py` | Six Streamlit pages over the same database |
+
+| Check | Limit | Severity |
+|---|---|---|
+| Max issuer weight | 8 % | HARD |
+| Max sector weight | 30 % | HARD |
+| Sector active weight vs. benchmark | ±10 pts | SOFT |
+| Cash, net of futures | 0.25 % - 3 % of NAV | HARD |
+| Total exposure (stocks + futures) | 98 % - 102 % | HARD |
+| Ex-ante tracking error | 6 % | SOFT |
+| Ex-ante beta | 0.85 - 1.15 | SOFT |
+| Number of holdings | 30 - 80 | SOFT |
+| Restricted list | none held or bought | HARD |
+| Order size vs. 20-day ADV | 10 % | SOFT |
+
+Every limit and assumption lives in [`config.yaml`](config.yaml) and is
+validated on load.
+
+## Methodology
+
+[docs/methodology.md](docs/methodology.md) has the formulas, assumptions and
+a worked example for every module: futures fair value, contract sizing, the
+overlay, basket construction, compliance, the risk model, the daily workflow
+and the backtest. [docs/interview_notes.md](docs/interview_notes.md) has short
+answers to the questions this project is meant to support.
+
+## Limitations
+
+- **Futures are priced at theoretical fair value.** A real desk uses the
+  traded contract price, which embeds the market's financing spread; the roll
+  spread is not simulated.
+- **Execution at the close**, with a linear cost model (commission + half
+  spread) and no market impact. Baskets are filled in full at the next close.
+- **Benchmark weights are a single snapshot** of market caps, not a
+  historical index-weight series.
+- **The offline mode is synthetic.** All results above use simulated prices;
+  they illustrate the mechanics, not real performance.
+- **Simplified calendar and settlement.** Monday-Friday business days without
+  exchange holidays. Trades settle at the close (no T+1). Initial margin is
+  not modelled beyond the cash buffer.
+- **Risk model:** sample covariance with shrinkage, not a factor model (Barra,
+  Axioma).
+- **Out of scope:** FX and international stocks, ETF create/redeem,
+  transition management, taxes. These are possible extensions.
 
 ## Project layout
 
 ```
-config.yaml          # every limit and assumption, in one reviewable file
-src/pit/             # the package (db, data, portfolio, equitization, orders, compliance, risk, workflow)
-app/dashboard.py     # Streamlit dashboard (6 pages)
-docs/                # methodology and design notes
-tests/               # pytest suite
+config.yaml              every limit and assumption, in one reviewable file
+data/inputs/             model weights, example flows, restricted list, offline universe
+src/pit/                 package: data, db, portfolio, equitization, orders,
+                         compliance, risk, workflow, dashboard queries, CLI
+app/dashboard.py         Streamlit dashboard (6 pages)
+docs/                    methodology, interview notes, screenshots
+tests/                   198 tests, no network calls (HTTP is mocked)
 ```
 
 ## Author
 
-Emilio Pirez
+**Emilio Pirez**, Finance, Universidad de Monterrey (UDEM), class of December 2026.
+
+[LinkedIn](https://www.linkedin.com/in/emilio-pirez-525b44311/) · [GitHub](https://github.com/emilio-pirez)
+
+Released under the [MIT License](LICENSE).

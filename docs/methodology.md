@@ -1,7 +1,22 @@
 # Methodology
 
 This document explains the financial logic behind each module: formulas,
-assumptions and simplifications. It is filled in phase by phase.
+assumptions and simplifications. Results quoted here use the **synthetic**
+offline data.
+
+**Contents**
+
+1. [Configuration and governance](#configuration-and-governance)
+2. [Data layer](#data-layer)
+3. [Portfolio valuation](#portfolio-valuation)
+4. [Index futures](#index-futures): fair value, expiries, rolls
+5. [Equitization](#equitization): contract sizing, worked example, redemptions
+6. [Basket construction](#basket-construction)
+7. [Pre-trade compliance](#pre-trade-compliance)
+8. [Risk model](#risk-model): beta, ex-ante tracking error
+9. [Daily workflow](#daily-workflow-pit-run-day)
+10. [Cash drag](#cash-drag)
+11. [Backtest](#backtest-pit-backtest)
 
 ## Configuration and governance
 
