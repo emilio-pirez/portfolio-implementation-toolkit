@@ -29,6 +29,7 @@ dependencies = [
     "typer>=0.12",
     "streamlit>=1.32",
     "plotly>=5.18",
+    "scikit-learn>=1.4",
 ]
 
 [project.optional-dependencies]
