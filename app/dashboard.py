@@ -89,15 +89,18 @@ def usd_m(x: float) -> str:
     return f"${x / 1e6:,.1f}m"
 
 
-def add_limit(fig: go.Figure, y: float, label: str) -> go.Figure:
-    """Dashed reference line for a compliance limit, labelled in muted text."""
+def add_limit(fig: go.Figure, y: float, label: str, below: bool = False) -> go.Figure:
+    """Dashed reference line for a compliance limit, labelled in muted text.
+
+    Minimum limits put their label under the line so it never sits on the data.
+    """
     fig.add_hline(
         y=y,
         line_dash="dash",
         line_width=1,
         line_color="#8a8984",
         annotation_text=label,
-        annotation_position="top left",
+        annotation_position="bottom left" if below else "top left",
         annotation_font_color="#8a8984",
     )
     return fig
@@ -165,7 +168,7 @@ def page_overview(engine: Engine, cfg: AppConfig, as_of: date) -> None:
     lim = cfg.compliance.total_exposure_range
     exp_fig = line_chart(hist, ["exposure"], "Total exposure (% of NAV)", [BLUE], ".1%")
     exp_fig.update_layout(showlegend=False, yaxis={"range": [lim.min - 0.01, lim.max + 0.01]})
-    add_limit(exp_fig, lim.min, f"min {lim.min:.0%}")
+    add_limit(exp_fig, lim.min, f"min {lim.min:.0%}", below=True)
     add_limit(exp_fig, lim.max, f"max {lim.max:.0%}")
     right.plotly_chart(exp_fig, width="stretch")
     cash = (hist[["cash", "futures_notional"]].div(hist["nav"], axis=0)).rename(
@@ -395,6 +398,7 @@ def page_cash(engine: Engine, cfg: AppConfig) -> None:
         exp,
         cfg.compliance.total_exposure_range.min,
         f"min {cfg.compliance.total_exposure_range.min:.0%}",
+        below=True,
     )
     right.plotly_chart(exp, width="stretch")
     st.subheader("Summary")
