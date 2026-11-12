@@ -13,6 +13,9 @@ NAV is dropped: a 2 bp trade costs about as much as it fixes. Full exits are
 always kept so the fund never carries small stub positions in names the PM
 removed.
 
+**Cash constraint.** Buys never use more than cash + sale proceeds - costs -
+minimum cash buffer; if they would, all buys are scaled down pro rata.
+
 **Estimated cost** (linear model, per order)::
 
     est_cost = |notional| x (commission_bps + half_spread_bps) / 10,000
@@ -23,6 +26,7 @@ and its audit-log entries.
 
 from __future__ import annotations
 
+import math
 import uuid
 from dataclasses import dataclass
 from datetime import date
@@ -149,6 +153,27 @@ def generate_basket(
     threshold = cfg.orders.no_trade_threshold_bps / 10_000
     full_exit = df["target_shares"] == 0
     keep = (df["weight_change"].abs() >= threshold) | full_exit
+
+    # Cash constraint: buys may use cash + sale proceeds - costs, but must
+    # leave the minimum buffer. If they would not, every buy is scaled down by
+    # the same factor (rounded down to the lot). Without this, the no-trade band
+    # is one-sided in practice (small overweights are never sold, underweights
+    # are bought) and the fund slowly runs out of cash.
+    bps = cfg.costs.total_bps / 10_000
+    is_buy = keep & (df["delta"] > 0)
+    sells = float(df.loc[keep & (df["delta"] < 0), "est_notional"].sum())
+    buys = float(df.loc[is_buy, "est_notional"].sum())
+    available = state.cash + sells * (1 - bps) - cfg.equitization.cash_buffer_pct * nav
+    if buys * (1 + bps) > available and buys > 0:
+        scale = max(available, 0.0) / (buys * (1 + bps))
+        lot = cfg.orders.round_lot
+        qty = (df.loc[is_buy, "quantity"] * scale / lot).apply(math.floor) * lot
+        df.loc[is_buy, "quantity"] = qty.astype(float)
+        df.loc[is_buy, "delta"] = qty.astype(float)
+        df.loc[is_buy, "est_notional"] = df.loc[is_buy, "quantity"] * df.loc[is_buy, "est_price"]
+        df.loc[is_buy, "est_cost"] = df.loc[is_buy, "est_notional"] * bps
+        df.loc[is_buy, "weight_change"] = df.loc[is_buy, "est_notional"] / nav
+        keep = keep & (df["quantity"] > 0)
 
     def _frame(mask: pd.Series) -> pd.DataFrame:
         out = df.loc[mask, ORDER_COLUMNS]

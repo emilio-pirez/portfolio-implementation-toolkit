@@ -38,20 +38,20 @@ def _cfg(cfg: AppConfig, buffer: float = 0.0, threshold_bps: float = 5.0) -> App
 def test_basket_by_hand(cfg: AppConfig) -> None:
     s = _state()
     assert s.nav == pytest.approx(10_000_000)
-    targets = pd.Series({"AAA": 0.30, "BBB": 0.50, "CCC": 0.20})
+    targets = pd.Series({"AAA": 0.30, "BBB": 0.50, "CCC": 0.19})
     b = generate_basket(s, targets, _cfg(cfg))
     o = b.orders.set_index("ticker")
     # AAA: 0.30 x 10m / 100 = 30,000 -> buy 10,000
     # BBB: 0.50 x 10m / 200 = 25,000 -> sell 5,000
-    # CCC: 0.20 x 10m / 50  = 40,000 -> buy 40,000
+    # CCC: 0.19 x 10m / 50  = 38,000 -> buy 38,000
     # OLD: not in the model -> sell all 100 (full exit, kept despite 1 bp size)
     assert o.loc["AAA", ["side", "quantity"]].tolist() == ["BUY", 10_000]
     assert o.loc["BBB", ["side", "quantity"]].tolist() == ["SELL", 5_000]
-    assert o.loc["CCC", ["side", "quantity"]].tolist() == ["BUY", 40_000]
+    assert o.loc["CCC", ["side", "quantity"]].tolist() == ["BUY", 38_000]
     assert o.loc["OLD", ["side", "quantity"]].tolist() == ["SELL", 100]
     # cost = notional x (1 + 2) bp
     assert o.loc["AAA", "est_cost"] == pytest.approx(1_000_000 * 3 / 10_000)
-    assert b.buy_notional == pytest.approx(3_000_000)
+    assert b.buy_notional == pytest.approx(2_900_000)
     assert b.sell_notional == pytest.approx(1_001_000)
     assert b.signed_quantities["BBB"] == -5_000
     assert b.summary()["orders"] == 4
@@ -59,10 +59,26 @@ def test_basket_by_hand(cfg: AppConfig) -> None:
 
 
 def test_cash_buffer_reduces_equity_budget(cfg: AppConfig) -> None:
-    b = generate_basket(_state(), pd.Series({"AAA": 1.0}), _cfg(cfg, buffer=0.01))
+    b = generate_basket(_state(), pd.Series({"AAA": 0.5}), _cfg(cfg, buffer=0.01))
     o = b.orders.set_index("ticker")
-    # 1.0 x 10m x 0.99 / 100 = 99,000 shares -> buy 79,000
-    assert o.loc["AAA", "quantity"] == 79_000
+    # 0.5 x 10m x 0.99 / 100 = 49,500 shares -> buy 29,500
+    assert o.loc["AAA", "quantity"] == 29_500
+
+
+def test_buys_scaled_to_available_cash(cfg: AppConfig) -> None:
+    """Buys of 3.0 m vs 1,999,000 cash + 1,001,000 sells - costs: slightly short,
+    so every buy is scaled down and the fund keeps its minimum cash."""
+    s = _state()
+    b = generate_basket(s, pd.Series({"AAA": 0.30, "BBB": 0.50, "CCC": 0.20}), _cfg(cfg))
+    o = b.orders.set_index("ticker")
+    assert o.loc["AAA", "quantity"] < 10_000 and o.loc["CCC", "quantity"] < 40_000
+    assert o.loc["BBB", "quantity"] == 5_000  # sells are untouched
+    cash_after = s.cash + b.sell_notional - b.buy_notional - b.total_cost
+    assert cash_after >= 0
+    # with a 1 % buffer the scaling is much stronger and keeps 100 k in cash
+    b1 = generate_basket(s, pd.Series({"AAA": 0.30, "BBB": 0.50, "CCC": 0.20}), _cfg(cfg, 0.01))
+    cash1 = s.cash + b1.sell_notional - b1.buy_notional - b1.total_cost
+    assert cash1 >= 0.01 * s.nav - 1
 
 
 def test_no_trade_band_skips_small_orders(cfg: AppConfig) -> None:
