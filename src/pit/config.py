@@ -103,6 +103,7 @@ class FuturesConfig(_StrictModel):
 
 
 class EquitizationConfig(_StrictModel):
+    enabled: bool = True
     cash_buffer_pct: float = Field(ge=0, lt=1)
 
 
@@ -168,6 +169,25 @@ class RiskConfig(_StrictModel):
     covariance_shrinkage: str = Field(pattern="^(none|ledoit_wolf)$")
 
 
+class WorkflowConfig(_StrictModel):
+    execution_lag_days: int = Field(ge=0, le=5)
+    outputs_dir: str = "data/outputs"
+
+
+class BacktestConfig(_StrictModel):
+    flow_seed: int = 7
+    flow_probability: float = Field(ge=0, le=1)
+    flow_min_pct: float = Field(gt=0, lt=1)
+    flow_max_pct: float = Field(gt=0, lt=1)
+    subscription_share: float = Field(ge=0, le=1)
+
+    @model_validator(mode="after")
+    def _min_le_max(self) -> BacktestConfig:
+        if self.flow_min_pct > self.flow_max_pct:
+            raise ValueError("backtest.flow_min_pct must be <= flow_max_pct")
+        return self
+
+
 class AppConfig(_StrictModel):
     fund: FundConfig
     data: DataConfig
@@ -177,6 +197,8 @@ class AppConfig(_StrictModel):
     costs: CostConfig
     compliance: ComplianceConfig
     risk: RiskConfig
+    workflow: WorkflowConfig
+    backtest: BacktestConfig
 
     # Folder that relative paths in the config are resolved against (the
     # folder holding config.yaml), so commands work from any working directory.

@@ -132,3 +132,46 @@ class FakeMarketAPI:
 @pytest.fixture
 def short_period() -> tuple[date, date]:
     return date(2024, 1, 2), date(2024, 3, 28)
+
+
+# --------------------------------------------------------------------------- workflow fixtures
+
+WF_START, WF_END = date(2023, 3, 1), date(2024, 6, 28)
+
+
+@pytest.fixture(scope="session")
+def _offline_db_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Offline data loaded once per test session; tests get a fresh copy."""
+    from pit.config import Settings
+    from pit.data.loader import load_data
+
+    folder = tmp_path_factory.mktemp("template")
+    raw = yaml.safe_load(DEFAULT_CONFIG_PATH.read_text(encoding="utf-8"))
+    raw["data"]["db_url"] = "sqlite:///template.db"
+    for key in (
+        "target_weights_file",
+        "offline_universe_file",
+        "restricted_list_file",
+        "cash_flows_file",
+    ):
+        raw["data"][key] = str(PROJECT_ROOT / raw["data"][key])
+    cfg_path = folder / "config.yaml"
+    cfg_path.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    cfg = load_config(cfg_path)
+    eng = make_engine(cfg.database_url)
+    no_keys = Settings(fmp_api_key=None, fred_api_key=None, _env_file=None)  # type: ignore[call-arg]
+    load_data(eng, cfg, no_keys, WF_START, WF_END, offline=True)
+    eng.dispose()
+    return folder / "template.db"
+
+
+@pytest.fixture
+def loaded_engine(_offline_db_template: Path, cfg: AppConfig) -> Iterator[Engine]:
+    """Engine on a private copy of the pre-loaded offline database."""
+    import shutil
+
+    target = Path(cfg.database_url.removeprefix("sqlite:///"))
+    shutil.copy(_offline_db_template, target)
+    eng = make_engine(cfg.database_url)
+    yield eng
+    eng.dispose()

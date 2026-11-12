@@ -158,7 +158,12 @@ def rebalance_overlay(
     # Variation margin on the old contracts is realised before resizing.
     marked = state.settle_futures() if state.futures else state
 
-    target = cash_to_equitize(marked, cfg.equitization.cash_buffer_pct) * cfg.futures.target_beta
+    if cfg.equitization.enabled:
+        target = (
+            cash_to_equitize(marked, cfg.equitization.cash_buffer_pct) * cfg.futures.target_beta
+        )
+    else:  # equitization switched off: hold no futures at all
+        target = 0.0
     sizing = size_futures(target, quote.price, es_mult, mes_mult)
 
     new_futures = tuple(

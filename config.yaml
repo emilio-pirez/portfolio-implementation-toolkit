@@ -41,6 +41,7 @@ futures:
   target_beta: 1.0                  # beta used to size the futures hedge
 
 equitization:
+  enabled: true                     # false = never hold futures (used for the backtest comparison)
   cash_buffer_pct: 0.005            # 0.5 % of NAV left un-equitized for margin and expenses
 
 orders:
@@ -70,3 +71,15 @@ risk:
   lookback_days: 252                # window for betas and covariance
   annualization_factor: 252
   covariance_shrinkage: "ledoit_wolf"   # "none" | "ledoit_wolf"
+
+workflow:
+  execution_lag_days: 1             # basket generated at T is filled at the close of T+lag (0 = same day)
+  outputs_dir: "data/outputs"       # desk CSVs and backtest results
+
+backtest:
+  # Random client flows used when no flows file is given (seeded -> reproducible).
+  flow_seed: 7
+  flow_probability: 0.10            # share of trading days with a flow
+  flow_min_pct: 0.005               # flow size as a share of NAV
+  flow_max_pct: 0.05
+  subscription_share: 0.6           # probability that a flow is a subscription
