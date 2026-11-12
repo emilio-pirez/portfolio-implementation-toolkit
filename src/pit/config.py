@@ -13,13 +13,14 @@ Two sources of configuration are kept deliberately separate:
 from __future__ import annotations
 
 import os
+from datetime import date
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -70,11 +71,16 @@ class FundConfig(_StrictModel):
 class DataConfig(_StrictModel):
     db_url: str
     target_weights_file: str
+    offline_universe_file: str
     cash_flows_file: str
     restricted_list_file: str
-    price_history_days: int = Field(gt=0)
+    history_start: date
+    index_symbol: str = "^GSPC"
+    fmp_base_url: str
+    fred_base_url: str
     risk_free_series: str = "DTB3"
     synthetic_seed: int = 42
+    synthetic_risk_free_rate: float = Field(ge=0, lt=1)
 
 
 class ContractSpec(_StrictModel):
@@ -171,6 +177,30 @@ class AppConfig(_StrictModel):
     compliance: ComplianceConfig
     risk: RiskConfig
 
+    # Folder that relative paths in the config are resolved against (the
+    # folder holding config.yaml), so commands work from any working directory.
+    _base_dir: Path = PrivateAttr(default=PROJECT_ROOT)
+
+    @property
+    def base_dir(self) -> Path:
+        return self._base_dir
+
+    def resolve_path(self, path: str | Path) -> Path:
+        """Absolute path for a file referenced in the config."""
+        p = Path(path)
+        return p if p.is_absolute() else self._base_dir / p
+
+    @property
+    def database_url(self) -> str:
+        """``data.db_url`` with a relative SQLite file path made absolute."""
+        url = self.data.db_url
+        prefix = "sqlite:///"
+        if url.startswith(prefix) and not url.startswith("sqlite:////"):
+            rel = url[len(prefix) :]
+            if rel and rel != ":memory:":
+                return prefix + str(self.resolve_path(rel))
+        return url
+
 
 # --------------------------------------------------------------------------- loaders
 
@@ -191,7 +221,9 @@ def load_config(path: str | Path | None = None) -> AppConfig:
     config_path = resolve_config_path(path)
     with config_path.open(encoding="utf-8") as fh:
         raw: dict[str, Any] = yaml.safe_load(fh) or {}
-    return AppConfig.model_validate(raw)
+    cfg = AppConfig.model_validate(raw)
+    cfg._base_dir = config_path.resolve().parent
+    return cfg
 
 
 @lru_cache(maxsize=1)
