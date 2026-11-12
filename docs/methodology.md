@@ -98,10 +98,18 @@ r_i,t = beta_i r_m,t + r_sector(i),t + e_i,t - 1/2 var_i dt
 |---|---|
 | Market drift / volatility | 8 % / 16 % per year |
 | Sector factor volatility | 8 % per year |
-| Idiosyncratic volatility | uniform 15-30 % per year |
+| Idiosyncratic volatility | uniform 10-22 % per year (typical for S&P 500 mega caps) |
 | Betas | uniform 0.75-1.25 |
 | Market caps (last date) | Zipf-like by size rank, so the top name is ~7 % of the benchmark |
 | Daily volume | 0.4 % of shares outstanding with noise |
+| SPX level | cap-weighted return of the 100 members **minus q/252** (a price index) |
+
+The synthetic SPX is built from its members and, like the real index, excludes
+dividends. Stock prices are total-return series. This keeps everything
+consistent: benchmark total return = SPX + q, and futures priced at
+S x exp((r - q)T) replicate it. With these settings the 55-name model has an
+ex-ante tracking error of ~4 % and a beta of ~1.02, typical of a core
+large-cap portfolio.
 
 The seed is fixed (`data.synthetic_seed`), and shocks are drawn one day at a
 time, so extending the end date never changes history already generated.
@@ -222,6 +230,12 @@ to the redemption's payment date.
   always kept so no stub positions are left behind. A side effect is useful:
   on a subscription, small names below the band are not bought, and that cash
   stays equitized with futures until the next rebalance.
+- **Cash constraint.** Buys may use at most cash + sale proceeds - costs -
+  minimum buffer. If they would use more, every buy is scaled down pro rata. The
+  same check runs again at execution, because the book may have changed in
+  between (e.g. a redemption). Without it the no-trade band is one-sided:
+  small overweights are never sold while underweights are bought, so the fund
+  slowly runs out of cash.
 - **Estimated cost** per order = |notional| x (commission 1 bp + half spread
   2 bp). Linear, with no market impact. A production model would add impact
   that grows with order size / ADV (e.g. a square-root model).
@@ -240,7 +254,7 @@ executed at estimated prices and costs, and the futures overlay resized
 | 1 | Max issuer weight | largest position / NAV | 8 % | HARD |
 | 2 | Max sector weight | largest GICS sector / NAV | 30 % | HARD |
 | 3 | Sector active weight | max abs(sector weight - benchmark sector weight) | 10 pts | SOFT |
-| 4 | Cash range | cash / NAV | 0.25 % - 3 % | HARD |
+| 4 | Cash range | **net** cash (cash - futures notional) / NAV | 0.25 % - 3 % | HARD |
 | 5 | Total exposure | (equities + futures notional) / NAV | 98 % - 102 % | HARD |
 | 6 | Tracking error | ex-ante, annualised (risk model, Phase 5) | 6 % | SOFT |
 | 7 | Beta | ex-ante vs S&P 500 (risk model, Phase 5) | 0.85 - 1.15 | SOFT |
@@ -250,6 +264,11 @@ executed at estimated prices and costs, and the futures overlay resized
 
 Design choices:
 
+- **Cash is measured net of futures.** On a subscription day physical
+  cash can be 5 % of NAV while futures cover almost all of it. That cash is
+  not out of the market, so it should not trip the 3 % maximum. Physical cash is
+  never below net cash while the fund is long futures, so the 0.25 % minimum
+  still protects margin and expenses.
 - **Futures are not allocated to sectors.** Index futures add exposure to
   every sector in benchmark proportions, so they do not change active sector
   weights.
@@ -278,6 +297,108 @@ per failed check, then `BASKET_APPROVED`, `BASKET_PENDING_APPROVAL` or
 `BASKET_REJECTED`, and later a manual `BASKET_APPROVED` / `BASKET_REJECTED`
 and `BASKET_FILLED`.
 
-## Sections to be added
+## Risk model
 
-- Beta, ex-ante tracking error and cash drag (Phase 5)
+**Beta** of stock i: cov(r_i, r_SPX) / var(r_SPX), from 252 daily returns.
+Portfolio beta = sum of w_i x beta_i + futures notional / NAV. Weights are
+fractions of NAV, cash has beta 0 and index futures have beta 1.
+
+**Ex-ante tracking error**, with the benchmark treated as one asset:
+
+    a  = [w_1, ..., w_n, w_SPX],   w_SPX = futures notional / NAV - 1
+    TE = sqrt(a' S a) x sqrt(252)
+
+S is the daily covariance of the stocks plus SPX over 252 days. Checks:
+a fund 100 % in futures has TE = 0; a fund with 5 % idle cash has
+TE = 5 % x index volatility.
+
+**Covariance:** Ledoit-Wolf shrinkage (`sklearn.covariance.ledoit_wolf`). With
+~57 assets and 252 observations the sample covariance is noisy (1,653
+parameters). Shrinking toward a scaled identity gives a stable, well
+conditioned matrix. The choice is set by `risk.covariance_shrinkage`
+(`ledoit_wolf` or `none`).
+
+The model is re-estimated every day, and the pre-trade check uses it on the
+**pro-forma** portfolio.
+
+## Daily workflow (`pit run-day`)
+
+At the close of day T:
+
+1. **Mark to market.** Re-price stocks, re-mark futures at fair value,
+   settle variation margin into cash, and accrue interest on cash at the
+   T-Bill rate (ACT/365).
+2. **Execute the pending basket** generated `workflow.execution_lag_days`
+   ago (default 1). APPROVED: fill at today's close, capping sells at the
+   shares held and scaling buys to the available cash, then de-equitize.
+   PROPOSED: it was not approved in time, so it expires (REJECTED, with reason).
+3. **Client flows.** Subscriptions are equitized at once; redemptions are
+   paid from cash, then from pro-rata stock sales.
+4. **Rolls.** Contracts within 5 business days of expiry are flagged
+   (`ROLL_REQUIRED`) and moved to the next contract (`FUTURES_ROLLED`).
+5. **New basket** toward the model, with the pre-trade review (10 checks,
+   including TE and beta).
+6. **Overlay resize, post-trade checks** on the actual book (stored as batch
+   `POST-<date>`), positions saved, desk CSV exported, `DAY_COMPLETED`.
+
+**Why a one-day execution lag?** The futures trade at the close of T (they
+trade almost 24 hours), while the stock basket needs the order to be built,
+checked and worked by the desk. It is filled at the next close. This is the
+gap equitization exists to cover. With same-day execution the futures would be
+bought and sold within the same day and equitization would show almost no effect.
+
+**Governance:** each day is processed **once and in order**, so a re-run or an
+out-of-order date is refused. Every step writes to `audit_log`.
+
+**Futures replicate total return.** Cash earns r, and the future returns
+about dS/S - (r - q) dt as F converges to S. Together they earn dS/S + q dt,
+the index total return. That is why equitized cash behaves like invested cash.
+
+## Cash drag
+
+    drag_t = idle cash %_(t-1) x (r_benchmark,t - r_f,t)
+
+- r_benchmark is the total return (SPX + q/252), and r_f is the T-Bill
+  accrual for the day.
+- Idle cash is cash net of futures.
+- **Realized** drag (the sum of daily drags) is noisy, because it depends on
+  what the market did on the specific days the cash was idle.
+- **Expected** drag = average idle cash x (benchmark return - T-Bill) over
+  the period. It shows the structural cost.
+
+## Backtest (`pit backtest`)
+
+Two scenarios run on the same market data, flows and basket logic. The only
+difference is `equitization.enabled`. Flows are random but seeded (10 % of
+days, 0.5-5 % of NAV, 60 % subscriptions), or read from a CSV. SOFT alerts are
+auto-approved and counted. Daily results go to the `backtest_daily` table and
+to CSVs in `data/outputs/`.
+
+Results on **synthetic data**, 2-Jan-2025 to 30-Oct-2026 (477 days, 45 flows):
+
+| Metric | Lag 1: with | Lag 1: without | Lag 3: with | Lag 3: without |
+|---|---|---|---|---|
+| Avg idle cash (% NAV) | 0.50 % | 0.87 % | 0.50 % | 1.35 % |
+| Max idle cash (% NAV) | 0.50 % | 5.61 % | 0.50 % | 7.79 % |
+| Avg total exposure | 99.50 % | 99.13 % | 99.50 % | 98.65 % |
+| Cash drag, realized (bp/yr) | 2.1 | 2.2 | 2.1 | 12.1 |
+| Cash drag, expected (bp/yr) | 1.6 | 2.8 | 1.6 | 4.3 |
+| Tracking difference vs benchmark (bp/yr) | +37.1 | +39.2 | +33.4 | +25.0 |
+| Days with a HARD post-trade breach | **0** | **26** | **0** | **95** |
+
+How to read it:
+
+- The **remaining drag with equitization is the 0.5 % buffer**, which is
+  never equitized by design.
+- With a 1-day lag the return benefit is small (~1 bp/yr expected), and in
+  this sample it is lost in the noise. The value of equitization here is
+  **control**: exposure is 99.5 % every day, and the fund never breaks its
+  98 % exposure or 3 % cash limits. Without it, every large subscription
+  breaks them.
+- The longer cash takes to invest, the bigger the benefit. With a 3-day lag
+  equitization adds about +8 bp/yr and removes 95 breach days. Real-world
+  cases with longer lags include large flows relative to liquidity,
+  transitions and holidays.
+- The tracking difference versus the benchmark is mostly stock selection
+  (55 names vs 100), which is the same in both scenarios. The difference
+  between the scenarios is the equitization effect.

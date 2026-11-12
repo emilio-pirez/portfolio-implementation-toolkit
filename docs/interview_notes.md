@@ -108,3 +108,47 @@ Use the firm's OMS/EMS and its compliance engine (rules coded from the
 prospectus and regulations, e.g. the 1940 Act diversification test). Add a
 market-impact cost model. Add four-eyes approval for exceptions, and reconcile
 fills against the custodian.
+
+## Phase 5 - Risk and workflow
+
+**What is cash drag and how much does it cost in a bull year?**
+It is the return lost on cash that is not invested: idle cash % x (equity
+return - T-Bill). With 3 % idle cash in a year where stocks return 25 % and
+T-Bills 5 %, that is 0.03 x 20 % = about 60 bp. For an index-like core fund
+whose tracking error budget is a few percent, that is a large share of the budget.
+In a falling market the sign flips and cash helps. That is why it shows up as
+tracking error, not just as lost return: the fund's beta drifts below 1.
+
+**What did your backtest show?** (synthetic data)
+With a one-day lag between a flow and the stock basket, equitization keeps
+idle cash at the 0.5 % buffer (vs. up to 5.6 %) and exposure at 99.5 % every day.
+Without it, the fund broke its 98 % exposure / 3 % cash limits on 26 days.
+The return benefit with a 1-day lag is small (~1 bp/yr expected) and within the
+noise. With a 3-day lag it grows to about +8 bp/yr and 95 avoided breach days.
+The honest conclusion: for liquid large caps the main value is risk control
+and staying within limits every day. The return benefit grows with how long
+cash would otherwise sit.
+
+**How do you measure tracking error ex-ante?**
+TE = sqrt(a' S a) x sqrt(252). Here a holds the active weights, with
+the index as one more asset: futures exposure - 100 %. S is a Ledoit-Wolf
+shrunk covariance of 252 daily returns. A fund fully in futures has TE = 0, and
+5 % idle cash adds about 5 % x index volatility. I run it on the pro-forma
+portfolio before every basket.
+
+**Why does the fill re-check cash?**
+Because the book can change between generating a basket and executing it.
+In the backtest, a redemption paid in between made a pending basket overdraw
+the fund. The fix is what a desk does: re-check available cash at execution
+and scale the buys.
+
+**What would you do differently in production?**
+- Use real futures prices and roll calendars instead of fair value, and
+  model roll cost.
+- Intraday execution with a market-impact model, instead of fills at the close.
+- An OMS/EMS and the firm's compliance engine, with four-eyes approval.
+- Daily reconciliation of positions and cash with the custodian and the
+  futures clearing broker, including initial and variation margin.
+- A commercial risk model (factor-based, e.g. Barra or Axioma) instead of a
+  sample covariance.
+- Settlement timing (T+1 for stocks) matched to the payment date of each flow.
