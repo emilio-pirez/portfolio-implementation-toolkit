@@ -208,8 +208,76 @@ no market impact. In production they would be a basket that goes through
 pre-trade compliance (Phase 4), and settlement timing (T+1) would be matched
 to the redemption's payment date.
 
+## Basket construction
+
+    equity budget   = NAV x (1 - cash buffer)
+    target shares_i = round_to_lot(w_i x equity budget / price_i)
+    order_i         = target shares_i - current shares_i      (> 0 BUY, < 0 SELL)
+
+- NAV is measured **after** the day's flow, so the basket invests a
+  subscription or funds a redemption.
+- Names held but not in the model get a target of zero (full exit).
+- **No-trade band (5 bp of NAV).** Smaller orders are dropped: their cost
+  (about 3 bp) is close to the tracking error they would fix. Full exits are
+  always kept so no stub positions are left behind. A side effect is useful:
+  on a subscription, small names below the band are not bought, and that cash
+  stays equitized with futures until the next rebalance.
+- **Estimated cost** per order = |notional| x (commission 1 bp + half spread
+  2 bp). Linear, with no market impact. A production model would add impact
+  that grows with order size / ADV (e.g. a square-root model).
+- Every basket gets a `batch_id` (UUID). Its orders, compliance checks and
+  audit events share that ID.
+- **Desk file:** `ticker, side, quantity, est_price, est_notional`.
+
+## Pre-trade compliance
+
+Checks run on the **pro-forma** portfolio: the current book with the basket
+executed at estimated prices and costs, and the futures overlay resized
+(de-equitized). That is the portfolio the fund would actually own at the close.
+
+| # | Check | Value | Limit | Severity |
+|---|---|---|---|---|
+| 1 | Max issuer weight | largest position / NAV | 8 % | HARD |
+| 2 | Max sector weight | largest GICS sector / NAV | 30 % | HARD |
+| 3 | Sector active weight | max abs(sector weight - benchmark sector weight) | 10 pts | SOFT |
+| 4 | Cash range | cash / NAV | 0.25 % - 3 % | HARD |
+| 5 | Total exposure | (equities + futures notional) / NAV | 98 % - 102 % | HARD |
+| 6 | Tracking error | ex-ante, annualised (risk model, Phase 5) | 6 % | SOFT |
+| 7 | Beta | ex-ante vs S&P 500 (risk model, Phase 5) | 0.85 - 1.15 | SOFT |
+| 8 | Holdings count | names held | 30 - 80 | SOFT |
+| 9 | Restricted list | restricted names held or **bought** | none | HARD |
+| 10 | Order vs ADV | largest order / 20-day average volume | 10 % | SOFT |
+
+Design choices:
+
+- **Futures are not allocated to sectors.** Index futures add exposure to
+  every sector in benchmark proportions, so they do not change active sector
+  weights.
+- **Selling a restricted name passes check 9.** Selling is how a breach is cured.
+- **Missing volume data fails check 10.** A check that cannot be evaluated
+  is not a pass.
+- The tracking error and beta checks take a pluggable risk model. Without
+  one they are recorded as passed with an empty value and the message "not
+  computed (no risk model supplied)", so the gap is visible in the
+  results. Phase 5 supplies the risk model.
+
+**Decision:**
+
+| Result | Basket status | What happens |
+|---|---|---|
+| Any HARD breach | `REJECTED` | Basket blocked; reasons in `compliance_checks` and `audit_log` |
+| SOFT breaches only | `PROPOSED` | Needs manual approval **with a written reason** |
+| All pass | `APPROVED` | Can go to the desk |
+
+Allowed status transitions: `PROPOSED -> APPROVED | REJECTED`,
+`APPROVED -> FILLED`. Anything else raises an error. Every transition writes an
+audit event with the actor and the reason.
+
+Audit trail of one basket: `BASKET_GENERATED`, then one `COMPLIANCE_BREACH`
+per failed check, then `BASKET_APPROVED`, `BASKET_PENDING_APPROVAL` or
+`BASKET_REJECTED`, and later a manual `BASKET_APPROVED` / `BASKET_REJECTED`
+and `BASKET_FILLED`.
+
 ## Sections to be added
 
-- Basket construction and transaction costs (Phase 4)
-- Compliance checks (Phase 4)
 - Beta, ex-ante tracking error and cash drag (Phase 5)

@@ -75,3 +75,36 @@ stay exposed while the stock sale is worked over several days to limit market im
 Futures need margin, fees must be paid, and small redemptions should not force
 trades. 0.5 % is a balance: big enough for daily margin swings on the futures,
 small enough that the drag on returns is limited.
+
+## Phase 4 - Orders and compliance
+
+**What controls do you run before sending a basket, and which ones block it?**
+I run them on the pro-forma portfolio, i.e. the fund as it will look after the
+trades and the futures adjustment, not on today's book.
+- *Blocking (HARD):* issuer above 8 %, sector above 30 %, cash outside
+  0.25-3 %, total exposure outside 98-102 %, and any restricted name held or
+  bought. These are regulatory, prospectus or firm-policy limits, and a
+  breach must never reach the market.
+- *Alerts (SOFT):* tracking error above 6 %, beta outside 0.85-1.15, sector
+  active weight above 10 pts, fewer than 30 or more than 80 names, and an
+  order above 10 % of ADV. These are risk-budget or liquidity signals where
+  the PM can make an informed exception. The approval needs a written reason
+  and is logged with who approved it.
+
+**Why a no-trade band?**
+Every trade costs a few basis points. A trade that moves a weight by 2 bp
+costs about as much as the tracking error it removes, and it adds operational
+load. The band keeps the basket focused on the trades that matter. Full exits
+are always traded.
+
+**What happens with a basket that breaks a limit?**
+It is stored as REJECTED with the failing checks and their values. Nothing
+goes to the desk. The PM adjusts (for example caps the name, or splits the trade
+over several days for liquidity) and generates a new batch, so the history of
+both attempts stays in the audit log.
+
+**What would you do differently in production?**
+Use the firm's OMS/EMS and its compliance engine (rules coded from the
+prospectus and regulations, e.g. the 1940 Act diversification test). Add a
+market-impact cost model. Add four-eyes approval for exceptions, and reconcile
+fills against the custodian.
