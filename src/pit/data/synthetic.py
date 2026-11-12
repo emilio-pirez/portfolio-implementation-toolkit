@@ -5,14 +5,15 @@ It exists only so that the project runs end-to-end without API keys.
 
 Return model (daily log returns, one-factor + sector structure)::
 
-    r_m,t      = mu_m dt + sigma_m sqrt(dt) z_m,t                     market factor (= index)
+    r_m,t      = mu_m dt + sigma_m sqrt(dt) z_m,t                     market factor
     r_s,t      = sigma_s sqrt(dt) z_s,t                               sector factor
     r_i,t      = beta_i r_m,t + r_s(i),t + sigma_i sqrt(dt) z_i,t - 1/2 var_i dt
 
 Prices follow ``P_t = P_0 exp(cumsum r)`` - a correlated geometric Brownian
 motion. Stocks in the same sector are more correlated than stocks in different
-sectors, and every stock co-moves with the index through its beta, which is
-what the beta and tracking-error calculations need.
+sectors, and every stock co-moves with the market through its beta, which is
+what the beta and tracking-error calculations need. The index (SPX) is the
+cap-weighted average of the 100 stocks, like a real cap-weighted index.
 
 Reproducibility: parameters and shocks come from generators seeded with
 ``seed``. Shocks are drawn row by row (one row per business day), so extending
@@ -33,7 +34,7 @@ TRADING_DAYS = 252
 MARKET_DRIFT = 0.08
 MARKET_VOL = 0.16
 SECTOR_VOL = 0.08
-IDIO_VOL_RANGE = (0.15, 0.30)
+IDIO_VOL_RANGE = (0.10, 0.22)
 BETA_RANGE = (0.75, 1.25)
 START_PRICE_RANGE = (30.0, 400.0)
 INDEX_START_LEVEL = 5_000.0
@@ -67,6 +68,7 @@ def generate_market(
     end: date,
     seed: int,
     risk_free_rate: float = 0.04,
+    dividend_yield: float = 0.0,
 ) -> SyntheticMarket:
     """Simulate prices, volumes, index levels, market caps and a flat T-Bill rate.
 
@@ -109,11 +111,22 @@ def generate_market(
     )
     # First day is the starting point: no return applied.
     r_i[0, :] = 0.0
-    r_m_idx = r_m - 0.5 * MARKET_VOL**2 * dt
-    r_m_idx[0] = 0.0
-
     closes = p0 * np.exp(np.cumsum(r_i, axis=0))
-    index_close = INDEX_START_LEVEL * np.exp(np.cumsum(r_m_idx))
+
+    # The index is the cap-weighted average of its members (like the real S&P
+    # 500), with weights fixed at the benchmark snapshot. Building it from the
+    # stocks (instead of using the market factor directly) means sector moves
+    # are in the benchmark too, so a diversified portfolio has a realistic
+    # tracking error.
+    index_weights = cap_end / cap_end.sum()
+    simple = np.expm1(r_i)
+    # Stock prices are total-return (dividend-adjusted) series, but SPX is a
+    # *price* index: its return is the members' return minus the dividend yield.
+    # This keeps the toolkit consistent: benchmark total return = SPX + q, and
+    # futures priced at S x exp((r - q) T) replicate it.
+    index_ret = simple @ index_weights - dividend_yield / TRADING_DAYS
+    index_ret[0] = 0.0
+    index_close = INDEX_START_LEVEL * np.cumprod(1.0 + index_ret)
 
     # Constant share count, calibrated so that cap(last date) = cap_end.
     shares_out = cap_end / closes[-1]

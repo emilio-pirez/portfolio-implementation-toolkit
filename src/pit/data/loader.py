@@ -137,7 +137,12 @@ def load_offline(engine: Engine, cfg: AppConfig, start: date, end: date) -> Load
         raise ValueError(f"model tickers missing from the offline universe: {not_in_universe}")
 
     mkt = generate_market(
-        universe, start, end, cfg.data.synthetic_seed, cfg.data.synthetic_risk_free_rate
+        universe,
+        start,
+        end,
+        cfg.data.synthetic_seed,
+        cfg.data.synthetic_risk_free_rate,
+        cfg.futures.index_dividend_yield,
     )
     src = DataSource.SYNTHETIC.value
 
