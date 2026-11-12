@@ -1,0 +1,101 @@
+ticker,name,sector
+NVDA,NVIDIA Corporation,Information Technology
+MSFT,Microsoft Corporation,Information Technology
+AAPL,Apple Inc.,Information Technology
+AMZN,Amazon.com Inc.,Consumer Discretionary
+GOOGL,Alphabet Inc. (Class A),Communication Services
+META,Meta Platforms Inc.,Communication Services
+AVGO,Broadcom Inc.,Information Technology
+TSLA,Tesla Inc.,Consumer Discretionary
+JPM,JPMorgan Chase & Co.,Financials
+LLY,Eli Lilly and Company,Health Care
+WMT,Walmart Inc.,Consumer Staples
+V,Visa Inc.,Financials
+ORCL,Oracle Corporation,Information Technology
+MA,Mastercard Incorporated,Financials
+XOM,Exxon Mobil Corporation,Energy
+NFLX,Netflix Inc.,Communication Services
+COST,Costco Wholesale Corporation,Consumer Staples
+JNJ,Johnson & Johnson,Health Care
+HD,The Home Depot Inc.,Consumer Discretionary
+PG,The Procter & Gamble Company,Consumer Staples
+ABBV,AbbVie Inc.,Health Care
+BAC,Bank of America Corporation,Financials
+UNH,UnitedHealth Group Incorporated,Health Care
+AMD,Advanced Micro Devices Inc.,Information Technology
+KO,The Coca-Cola Company,Consumer Staples
+GE,GE Aerospace,Industrials
+CSCO,Cisco Systems Inc.,Information Technology
+CVX,Chevron Corporation,Energy
+WFC,Wells Fargo & Company,Financials
+PM,Philip Morris International Inc.,Consumer Staples
+IBM,International Business Machines Corporation,Information Technology
+CRM,Salesforce Inc.,Information Technology
+MS,Morgan Stanley,Financials
+ABT,Abbott Laboratories,Health Care
+GS,The Goldman Sachs Group Inc.,Financials
+AXP,American Express Company,Financials
+LIN,Linde plc,Materials
+MCD,McDonald's Corporation,Consumer Discretionary
+INTU,Intuit Inc.,Information Technology
+DIS,The Walt Disney Company,Communication Services
+T,AT&T Inc.,Communication Services
+MRK,Merck & Co. Inc.,Health Care
+RTX,RTX Corporation,Industrials
+UBER,Uber Technologies Inc.,Industrials
+CAT,Caterpillar Inc.,Industrials
+PEP,PepsiCo Inc.,Consumer Staples
+NOW,ServiceNow Inc.,Information Technology
+VZ,Verizon Communications Inc.,Communication Services
+TMO,Thermo Fisher Scientific Inc.,Health Care
+BKNG,Booking Holdings Inc.,Consumer Discretionary
+ISRG,Intuitive Surgical Inc.,Health Care
+QCOM,QUALCOMM Incorporated,Information Technology
+C,Citigroup Inc.,Financials
+SCHW,The Charles Schwab Corporation,Financials
+SPGI,S&P Global Inc.,Financials
+ADBE,Adobe Inc.,Information Technology
+TXN,Texas Instruments Incorporated,Information Technology
+AMGN,Amgen Inc.,Health Care
+PGR,The Progressive Corporation,Financials
+BA,The Boeing Company,Industrials
+AMAT,Applied Materials Inc.,Information Technology
+TMUS,T-Mobile US Inc.,Communication Services
+NEE,NextEra Energy Inc.,Utilities
+HON,Honeywell International Inc.,Industrials
+UNP,Union Pacific Corporation,Industrials
+ETN,Eaton Corporation plc,Industrials
+DHR,Danaher Corporation,Health Care
+GILD,Gilead Sciences Inc.,Health Care
+PFE,Pfizer Inc.,Health Care
+LOW,Lowe's Companies Inc.,Consumer Discretionary
+TJX,The TJX Companies Inc.,Consumer Discretionary
+MU,Micron Technology Inc.,Information Technology
+PANW,Palo Alto Networks Inc.,Information Technology
+CMCSA,Comcast Corporation,Communication Services
+DE,Deere & Company,Industrials
+COP,ConocoPhillips,Energy
+LMT,Lockheed Martin Corporation,Industrials
+ADP,Automatic Data Processing Inc.,Industrials
+VRTX,Vertex Pharmaceuticals Incorporated,Health Care
+MMC,Marsh & McLennan Companies Inc.,Financials
+CB,Chubb Limited,Financials
+PLD,Prologis Inc.,Real Estate
+SBUX,Starbucks Corporation,Consumer Discretionary
+MDLZ,Mondelez International Inc.,Consumer Staples
+SO,The Southern Company,Utilities
+MO,Altria Group Inc.,Consumer Staples
+AMT,American Tower Corporation,Real Estate
+DUK,Duke Energy Corporation,Utilities
+NKE,NIKE Inc.,Consumer Discretionary
+UPS,United Parcel Service Inc.,Industrials
+EQIX,Equinix Inc.,Real Estate
+SHW,The Sherwin-Williams Company,Materials
+CMG,Chipotle Mexican Grill Inc.,Consumer Discretionary
+APD,Air Products and Chemicals Inc.,Materials
+ECL,Ecolab Inc.,Materials
+EOG,EOG Resources Inc.,Energy
+SLB,SLB N.V.,Energy
+CL,Colgate-Palmolive Company,Consumer Staples
+AEP,American Electric Power Company Inc.,Utilities
+SPG,Simon Property Group Inc.,Real Estate
