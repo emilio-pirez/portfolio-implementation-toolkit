@@ -138,7 +138,15 @@ def check_sector_active_weight(ctx: ComplianceContext, cfg: ComplianceConfig) ->
 
 
 def check_cash_range(ctx: ComplianceContext, cfg: ComplianceConfig) -> CheckResult:
-    return _range("cash_range", ctx.state.cash_pct, cfg.cash_range, "cash")
+    """Cash **net of futures** (cash - futures notional) / NAV.
+
+    Cash that is equitized with futures is not out of the market, so it should
+    not trip the maximum. Physical cash is never below net cash while the fund
+    is long futures, so the minimum still protects margin and expenses.
+    """
+    nav = ctx.state.nav
+    net = ctx.state.unequitized_cash / nav if nav else 0.0
+    return _range("cash_range", net, cfg.cash_range, "net cash")
 
 
 def check_total_exposure(ctx: ComplianceContext, cfg: ComplianceConfig) -> CheckResult:

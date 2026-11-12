@@ -135,6 +135,14 @@ def test_cash_range(cfg: AppConfig) -> None:
     assert not high.passed and "above" in high.message
 
 
+def test_cash_check_uses_cash_net_of_futures(cfg: AppConfig) -> None:
+    """5 % physical cash fully covered by futures is not idle cash."""
+    s = _diversified(cash_pct=0.05)  # 5 m cash
+    es = FuturesPosition("ESM6", "ES", date(2026, 6, 19), 50.0, 15, 6_000.0, 6_000.0)  # 4.5 m
+    res = _one(_ctx(replace(s, futures=(es,))), chk.check_cash_range, cfg)
+    assert res.passed and res.value == pytest.approx(0.005)
+
+
 # --------------------------------------------------------------------------- 5. exposure
 
 
