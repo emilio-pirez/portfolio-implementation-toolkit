@@ -27,7 +27,12 @@ def tmp_config_path(tmp_path: Path) -> Path:
     raw["data"]["db_url"] = "sqlite:///test.db"
     raw["data"]["fmp_base_url"] = FMP_BASE
     raw["data"]["fred_base_url"] = FRED_BASE
-    for key in ("target_weights_file", "offline_universe_file"):
+    for key in (
+        "target_weights_file",
+        "offline_universe_file",
+        "restricted_list_file",
+        "cash_flows_file",
+    ):
         raw["data"][key] = str(PROJECT_ROOT / raw["data"][key])
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(raw), encoding="utf-8")
