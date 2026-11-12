@@ -128,9 +128,14 @@ streamlit run app/dashboard.py
 ```
 
 The first launch builds the offline demo (~1 minute); after that the dashboard
-opens immediately. Everything also runs from the command line:
+opens immediately. On a fresh clone the whole path takes about 2-3 minutes.
+
+Everything also runs from the command line. Days are processed once and in
+order, so start from an empty database (the demo above already processed
+March-April 2026):
 
 ```bash
+rm -f data/db/toolkit.db             # start over
 pit load-data --offline              # synthetic data, no API keys needed
 pit run-day --date 2026-03-16        # USD 25 m subscription: equitize, basket, compliance
 pit run-day --date 2026-03-17        # basket filled, futures unwound
