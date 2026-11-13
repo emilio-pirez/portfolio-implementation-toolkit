@@ -4,10 +4,15 @@
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 ![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://portfolio-implementation-toolkit.streamlit.app/)
 
 **A simplified simulation of a core portfolio manager's daily implementation
 workflow: cash equitization with index futures, basket generation, pre-trade
 compliance and monitoring.**
+
+**Live demo:** [portfolio-implementation-toolkit.streamlit.app](https://portfolio-implementation-toolkit.streamlit.app/)
+(synthetic data; if the app has been idle for a while, Streamlit takes about a
+minute to wake it up).
 
 ![Overview page of the dashboard](docs/screenshots/01_overview.png)
 
@@ -33,7 +38,8 @@ controlling risk and documenting every decision.
 
 ## Demo
 
-`streamlit run app/dashboard.py` opens six pages. On a fresh clone the first
+Try it online at the [live demo](https://portfolio-implementation-toolkit.streamlit.app/),
+or locally: `streamlit run app/dashboard.py` opens six pages. On a fresh clone the first
 launch loads a prebuilt offline demo (`data/demo/demo.db`) in a few seconds.
 A banner marks every page whenever the data is synthetic.
 
@@ -217,7 +223,8 @@ answers to the questions this project is meant to support.
 
 ## Deploy the dashboard (Streamlit Community Cloud)
 
-The repository is ready for [Streamlit Community Cloud](https://share.streamlit.io):
+The live demo runs on [Streamlit Community Cloud](https://share.streamlit.io),
+deployed straight from this repository:
 `requirements.txt` installs the package, and `config.yaml` is found from the
 repository root. On start, the empty database is restored from
 `data/demo/demo.db`. In the deploy form use branch `main`, main file
