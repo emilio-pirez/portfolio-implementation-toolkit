@@ -1,39 +1,21 @@
-# Interview notes
+# Design questions and answers
 
-Short answers to the questions this project is designed to support, grouped
-by the phase that built the relevant piece. Numbers come from the synthetic
-offline data.
+Short answers to the questions a reviewer is likely to ask about the design
+choices in this project, grouped by area. Formulas and details are in
+[methodology.md](methodology.md). Numbers come from the synthetic offline data.
 
-**The six core questions**
+**Key questions**
 
 | Question | Answer |
 |---|---|
-| Why equitize with futures and not with an ETF like SPY? | [Phase 3](#phase-3---portfolio-and-equitization) |
-| How do you calculate how many contracts to buy? What happens with the residual? | [Phase 3](#phase-3---portfolio-and-equitization) |
-| What is cash drag and how much does it cost in a bull year? | [Phase 5](#phase-5---risk-and-workflow) |
-| Which controls do you run before sending a basket, and which ones block it? | [Phase 4](#phase-4---orders-and-compliance) |
-| How do you handle a large redemption? | [Phase 3](#phase-3---portfolio-and-equitization) |
-| What would you do differently in production? | [Phase 4](#phase-4---orders-and-compliance) and [Phase 5](#phase-5---risk-and-workflow) |
+| Why equitize with futures rather than an ETF like SPY? | [Portfolio and equitization](#portfolio-and-equitization) |
+| How many contracts are bought, and what happens to the residual? | [Portfolio and equitization](#portfolio-and-equitization) |
+| What is cash drag and what does it cost in a bull year? | [Risk and workflow](#risk-and-workflow) |
+| Which controls run before a basket is sent, and which ones block it? | [Orders and compliance](#orders-and-compliance) |
+| How is a large redemption handled? | [Portfolio and equitization](#portfolio-and-equitization) |
+| What would change in production? | [Orders and compliance](#orders-and-compliance) and [Risk and workflow](#risk-and-workflow) |
 
-## The project in 60 seconds
-
-"I built a simplified version of a core PM's daily implementation workflow.
-A model portfolio comes in as target weights, and client flows come in as
-cash. Every day the tool marks the book to market and equitizes new cash with
-E-mini and Micro E-mini futures the same day. It builds the stock basket
-toward the model, runs ten pre-trade checks on the pro-forma portfolio
-(including ex-ante tracking error and beta), and blocks anything that breaks
-a hard limit. The basket fills the next day and the futures are unwound.
-Everything is written to an audit log and shown in a dashboard.
-
-The backtest compares the same fund with and without equitization. The main
-benefit was not return, about 1 bp a year when cash is invested the next day,
-but control: with futures the fund never broke its exposure or cash limits,
-and without them it did on 26 days. Building it also showed me why a desk
-re-checks cash at execution: a redemption paid between generating and
-filling a basket made the fund overdraw in my first version."
-
-## Phase 1 - Skeleton
+## Configuration
 
 **Why keep every limit in `config.yaml` instead of in code?**
 Limits are business decisions, not implementation details. Keeping them in one
@@ -46,7 +28,7 @@ Not every breach should stop trading. A position above the issuer limit or a
 name on the restricted list must block the basket; a tracking error slightly
 above target should alert the PM, who can approve it with a documented reason.
 
-## Phase 2 - Data
+## Data
 
 **Where does the data come from, and what would change in production?**
 Prices and constituents from Financial Modeling Prep, the T-Bill rate from
@@ -55,7 +37,7 @@ FactSet, the index provider for official benchmark weights) and from the
 firm's security master, and the book of record would be reconciled daily
 against the custodian.
 
-**How do you avoid mixing bad or fake data with real data?**
+**How is bad or synthetic data kept apart from real data?**
 Every row carries its source. Real and synthetic data are never stored
 together, downloads finish before anything is written, and failures are logged
 in the audit trail. The dashboard (Phase 6) will show a banner whenever data is synthetic.
@@ -70,9 +52,9 @@ Tracking error is computed against the index return directly, so the
 covariance matrix only needs the names the fund can hold plus the index. That
 cuts the download from 500 series to about 56.
 
-## Phase 3 - Portfolio and equitization
+## Portfolio and equitization
 
-**Why equitize with futures and not with an ETF like SPY?**
+**Why equitize with futures rather than an ETF like SPY?**
 - *Cost:* no management fee (SPY ~9 bp a year) and a tighter effective
   spread on very large size; ES is one of the most liquid contracts in the world.
 - *Cash:* a future needs only margin (a few % of notional), so most of the
@@ -85,7 +67,7 @@ cuts the download from 500 series to about 56.
   risk versus the portfolio, and need margin management. Some mandates or
   smaller accounts cannot use derivatives, and then an ETF is the fallback.
 
-**How do you calculate how many contracts to buy? What happens with the residual?**
+**How many contracts are bought, and what happens to the residual?**
 Divide the cash to equitize (above the buffer, times the target beta) by the
 contract notional F x multiplier. Floor the ES contracts so the big contract
 never over-exposes the fund, then cover the rest with micro contracts
@@ -93,12 +75,12 @@ never over-exposes the fund, then cover the rest with micro contracts
 a micro contract, about USD 15k, which is immaterial on a USD 500 m fund.
 Worked example: USD 25 m at F = 6,030 gives 82 ES + 9 MES and leaves USD 5,650 uncovered.
 
-**How do you handle a large redemption?**
+**How is a large redemption handled?**
 Cash first: use the cash (keeping the minimum buffer on the smaller NAV) and
 sell the futures that were equitizing it. If that is not enough, sell stocks
 pro rata for the shortfall so the weights and tracking error do not change.
 The sale is a basket that goes through pre-trade compliance. For a very large
-redemption I would also consider an in-kind transfer, or using futures to
+redemption, an in-kind transfer is also an option, as is using futures to
 stay exposed while the stock sale is worked over several days to limit market impact.
 
 **Why keep a cash buffer at all?**
@@ -106,10 +88,10 @@ Futures need margin, fees must be paid, and small redemptions should not force
 trades. 0.5 % is a balance: big enough for daily margin swings on the futures,
 small enough that the drag on returns is limited.
 
-## Phase 4 - Orders and compliance
+## Orders and compliance
 
-**What controls do you run before sending a basket, and which ones block it?**
-I run them on the pro-forma portfolio, i.e. the fund as it will look after the
+**Which controls run before a basket is sent, and which ones block it?**
+They run on the pro-forma portfolio, i.e. the fund as it will look after the
 trades and the futures adjustment, not on today's book.
 - *Blocking (HARD):* issuer above 8 %, sector above 30 %, cash outside
   0.25-3 %, total exposure outside 98-102 %, and any restricted name held or
@@ -133,15 +115,15 @@ goes to the desk. The PM adjusts (for example caps the name, or splits the trade
 over several days for liquidity) and generates a new batch, so the history of
 both attempts stays in the audit log.
 
-**What would you do differently in production?**
+**What would change in production?**
 Use the firm's OMS/EMS and its compliance engine (rules coded from the
 prospectus and regulations, e.g. the 1940 Act diversification test). Add a
 market-impact cost model. Add four-eyes approval for exceptions, and reconcile
 fills against the custodian.
 
-## Phase 5 - Risk and workflow
+## Risk and workflow
 
-**What is cash drag and how much does it cost in a bull year?**
+**What is cash drag and what does it cost in a bull year?**
 It is the return lost on cash that is not invested: idle cash % x (equity
 return - T-Bill). With 3 % idle cash in a year where stocks return 25 % and
 T-Bills 5 %, that is 0.03 x 20 % = about 60 bp. For an index-like core fund
@@ -149,7 +131,7 @@ whose tracking error budget is a few percent, that is a large share of the budge
 In a falling market the sign flips and cash helps. That is why it shows up as
 tracking error, not just as lost return: the fund's beta drifts below 1.
 
-**What did your backtest show?** (synthetic data)
+**What does the backtest show?** (synthetic data)
 With a one-day lag between a flow and the stock basket, equitization keeps
 idle cash at the 0.5 % buffer (vs. up to 5.6 %) and exposure at 99.5 % every day.
 Without it, the fund broke its 98 % exposure / 3 % cash limits on 26 days.
@@ -159,12 +141,12 @@ The honest conclusion: for liquid large caps the main value is risk control
 and staying within limits every day. The return benefit grows with how long
 cash would otherwise sit.
 
-**How do you measure tracking error ex-ante?**
+**How is ex-ante tracking error measured?**
 TE = sqrt(a' S a) x sqrt(252). Here a holds the active weights, with
 the index as one more asset: futures exposure - 100 %. S is a Ledoit-Wolf
 shrunk covariance of 252 daily returns. A fund fully in futures has TE = 0, and
-5 % idle cash adds about 5 % x index volatility. I run it on the pro-forma
-portfolio before every basket.
+5 % idle cash adds about 5 % x index volatility. It is computed on the
+pro-forma portfolio before every basket.
 
 **Why does the fill re-check cash?**
 Because the book can change between generating a basket and executing it.
@@ -172,7 +154,7 @@ In the backtest, a redemption paid in between made a pending basket overdraw
 the fund. The fix is what a desk does: re-check available cash at execution
 and scale the buys.
 
-**What would you do differently in production?**
+**What would change in production?**
 - Use real futures prices and roll calendars instead of fair value, and
   model roll cost.
 - Intraday execution with a market-impact model, instead of fills at the close.
@@ -183,9 +165,9 @@ and scale the buys.
   sample covariance.
 - Settlement timing (T+1 for stocks) matched to the payment date of each flow.
 
-## Phase 6 - Dashboard
+## Dashboard
 
-**What would you look at first every morning?**
+**What does the Overview page show first, and why?**
 1. Total exposure and net cash against their limits: is the fund fully
    invested?
 2. Alerts: post-trade breaches, baskets waiting for approval, futures that

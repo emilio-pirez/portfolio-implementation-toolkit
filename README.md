@@ -199,8 +199,8 @@ validated on load.
 [docs/methodology.md](docs/methodology.md) has the formulas, assumptions and
 a worked example for every module: futures fair value, contract sizing, the
 overlay, basket construction, compliance, the risk model, the daily workflow
-and the backtest. [docs/interview_notes.md](docs/interview_notes.md) has short
-answers to the questions this project is meant to support.
+and the backtest. [docs/design_faq.md](docs/design_faq.md) answers the
+questions a reviewer is likely to ask about the design choices.
 
 ## Limitations
 
@@ -239,7 +239,7 @@ data/demo/demo.db        prebuilt offline demo database (synthetic) for the dash
 src/pit/                 package: data, db, portfolio, equitization, orders,
                          compliance, risk, workflow, dashboard queries, CLI
 app/dashboard.py         Streamlit dashboard (6 pages)
-docs/                    methodology, interview notes, screenshots
+docs/                    methodology, design Q&A, screenshots
 tests/                   202 tests, no network calls (HTTP is mocked)
 ```
 
